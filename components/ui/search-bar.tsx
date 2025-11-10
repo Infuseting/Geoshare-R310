@@ -224,15 +224,15 @@ export default function SearchBar() {
                           setQ('')
                           setFocused(false)
                         }}
-                        className="w-full text-left"
+                        className="w-full text-left "
                       >
-                        <div className="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 rounded">
+                        <div className="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 max-w-full w-full rounded">
                           <div className={`min-w-8 min-h-8 rounded-full flex items-center justify-center text-gray-600 bg-gray-100`}>
                             {item.source === 'infra' ? '🏢' : '📍'}
                           </div>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             {/* name / display as primary */}
-                            <div className="font-medium text-sm truncate">
+                              <div className="font-medium text-sm truncate">
                               {item.source === 'infra' ? item.name : item.display_name}
                             </div>
                             {/* address / type as secondary */}
@@ -270,7 +270,7 @@ export default function SearchBar() {
                               <div className={`min-w-8 min-h-8 rounded-full flex items-center justify-center text-gray-600 ${item.title === 'Domicile' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100'}`}>
                                 {item.icon}
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="font-medium text-sm truncate">{item.title}</div>
                                 {item.subtitle ? <div className="text-xs text-gray-500 truncate">{item.subtitle}</div> : null}
                               </div>
