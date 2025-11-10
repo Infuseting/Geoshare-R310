@@ -27,7 +27,7 @@ type Props = {
   maxZoom?: number;
 };
 
-export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoom = 1, maxZoom = 19 }: Props) {
+export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoom = 1, maxZoom = 18  }: Props) {
   const mapRef = React.useRef<LeafletMapType | null>(null)
   const [userPos, setUserPos] = React.useState<[number, number] | null>(null)
   const [geoEnabled, setGeoEnabled] = React.useState<boolean>(false)
@@ -40,17 +40,6 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
   // Default center: try to use geolocation on mount; otherwise fallback to Caen
   const defaultCaen: [number, number] = [49.182863, -0.370679]
 
-  // Sync map zoom with internal state when we have a map instance
-  React.useEffect(() => {
-    if (!mapInstance) return
-    const updateZoom = () => setMapZoom(mapInstance.getZoom())
-    mapInstance.on("zoomend", updateZoom)
-    // initialize
-    setMapZoom(mapInstance.getZoom())
-    return () => {
-      mapInstance.off("zoomend", updateZoom)
-    }
-  }, [mapInstance])
 
   // Try to get position on load, but don't force prompt if the user previously denied.
   React.useEffect(() => {
@@ -229,12 +218,22 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
     // initial fetch
     try { handler() } catch (e) {}
 
+    // keep mapZoom state in sync with the actual map zoom
+    const zoomSync = () => {
+      console.log(mapInstance.getZoom())
+      try {
+        setMapZoom(mapInstance.getZoom())
+      } catch (e) {}
+    }
+
     mapInstance.on('moveend', handler)
     mapInstance.on('zoomend', handler)
+    mapInstance.on('zoomend', zoomSync)
 
     return () => {
       mapInstance.off('moveend', handler)
       mapInstance.off('zoomend', handler)
+      mapInstance.off('zoomend', zoomSync)
       if (infraDebounceRef.current) window.clearTimeout(infraDebounceRef.current)
       try { infraAbortRef.current?.abort() } catch (e) {}
     }
@@ -255,6 +254,10 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
         ref={(m: LeafletMapType | null) => {
           mapRef.current = m
           setMapInstance(m)
+          // Sync initial zoom state when map instance becomes available
+          try {
+            if (m) setMapZoom(m.getZoom())
+          } catch (e) {}
         }}
       >
         <TileLayer
