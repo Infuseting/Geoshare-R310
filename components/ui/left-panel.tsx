@@ -1,93 +1,53 @@
-"use client";
+"use client"
+import React from 'react'
+import { useLeftPanel } from './left-panel-context'
 
-import React from "react";
-import { Bookmark, MagnetIcon, Menu as MenuIcon, ScanSearch } from "lucide-react";
+export default function LeftPanel({name, children}: {name?: string, children?: React.ReactNode}) {
+  const { open, title, html, closePanel } = useLeftPanel()
 
-// Component to render recent 'search' type history items (newest -> oldest)
-function RecentSearches() {
-  const [searches, setSearches] = React.useState<Array<any>>([])
-
+  // Notify search UI using window events for backward compatibility when panel opens/closes
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem('recentSearches')
-      if (!raw) return
-      const arr = JSON.parse(raw)
-      const filtered = (arr || []).filter((r: any) => r && r.type === 'search')
-      // the history stored by addToHistory places newest items first, so keep order
-      setSearches(filtered.slice(0, 10))
-    } catch (e) {
-      console.warn('failed to load recent searches', e)
+    if (open) {
+      window.dispatchEvent(new CustomEvent('infraster:leftPanel:open'))
+      // also request search to close
+      window.dispatchEvent(new CustomEvent('infraster:search:close'))
+    } else {
+      window.dispatchEvent(new CustomEvent('infraster:leftPanel:close'))
     }
-  }, [])
-
-  if (!searches || searches.length === 0) {
-    return <div className="text-xs text-gray-400 px-2">Aucune recherche récente</div>
-  }
+  }, [open])
 
   return (
-    <div className="w-full px-2">
-      {searches.map((s: any, idx: number) => (
-        
-        <div className="justify-center items-center flex flex-col">
-          <button
-            key={idx}
-            title={s.title}
-            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-700"
-            aria-label={s.title}
-            onClick={() => {
-            // emit a custom event with the query so other parts (like SearchBar) may react
-            try {
-              window.dispatchEvent(new CustomEvent('infraster:searchQuery', { detail: { q: s.title } }))
-            } catch (e) {
-              console.warn('failed to dispatch searchQuery', e)
-            }
-          }}
-          >
-            <MagnetIcon className="h-5 w-5" />
-            
-          </button>
-          <span className="block w-10 truncate text-sm text-center">{s.title}</span>
+    <>
+      {/* Toggle button (kept for quick access) */}
+      <button
+        aria-expanded={open}
+        aria-controls="left-panel"
+        onClick={() => (open ? closePanel() : null)}
+        className="fixed left-2 top-4 z-9999 bg-white border rounded-full p-2 shadow-sm hover:bg-gray-50"
+      >
+        <span className="sr-only">Toggle left panel</span>
+        {open ? '←' : '☰'}
+      </button>
+
+      {/* Panel */}
+      {open && (
+        <div
+          id="left-panel"
+          className="fixed left-16 top-0 h-screen w-[min(320px,56vw)] max-h-screen bg-white shadow-md z-9998 overflow-auto rounded-r-2xl p-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">{title ?? name ?? 'Panneau'}</h3>
+            <button onClick={() => closePanel()} className="text-sm text-gray-500">☰</button>
+          </div>
+
+          <div>
+            {children}
+            {/* render any React node passed as html */}
+            {html && <div className="mt-2">{html}</div>}
+          </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   )
 }
-
-export default function LeftPanel() {
-  const items = [
-    { key: "menu", label: "Menu", icon: MenuIcon },
-    { key: "bookmarks", label: "Signets", icon: Bookmark },
-    { key: "search", label: "Recherche", icon: ScanSearch },
-  ];
-
-  return (
-    <aside className="fixed inset-y-0 left-0 z-[9999] w-16 bg-white border-r border-gray-100 shadow-sm">
-      <div className="h-full flex flex-col items-center py-3 space-y-3 overflow-y-auto">
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <div className="justify-center items-center flex flex-col">
-              <button
-                key={it.key}
-                title={it.label}
-                className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-700"
-                aria-label={it.label}
-              >
-                <Icon className="h-5 w-5" />
-                
-              </button>
-              <span className="block w-10 truncate text-sm text-center">{it.label}</span>
-            </div>
-          );
-        })}
-        <div className="border-t border-gray-200 w-full " />
-        
-        <RecentSearches />
-
-        <div className="flex-1" />
-
-      
-      </div>
-    </aside>
-  );
-}
+ 

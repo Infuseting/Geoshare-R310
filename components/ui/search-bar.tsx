@@ -1,12 +1,14 @@
 "use client";
 
 import React from "react";
+import { useLeftPanel } from './left-panel-context'
 import { Search } from "lucide-react";
-import { set } from "react-hook-form";
 
 export default function SearchBar() {
   const [q, setQ] = React.useState("");
   const [focused, setFocused] = React.useState(false);
+  // derive left-panel open state from LeftPanel context
+  const { open: leftPanelOpenCtx, closePanel } = useLeftPanel()
   // recent searches stored in localStorage under the key 'recentSearches'
   const [recentSearches, setRecentSearches] = React.useState<Array<any>>([]);
   const [suggestions, setSuggestions] = React.useState<Array<any>>([])
@@ -260,9 +262,41 @@ export default function SearchBar() {
     return () => window.removeEventListener('infraster:searchQuery', onRecentSearch as EventListener)
   }, [performFullSearch])
 
+  // Keep local view in sync with LeftPanel context
+  React.useEffect(() => {
+    if (leftPanelOpenCtx) {
+      // if left panel opens, close the search UI
+      setFocused(false)
+      setSearchResults([])
+    }
+    // no cleanup required; we just derive state from context
+  }, [leftPanelOpenCtx])
+
+  // Notify other UI (left-panel) when the search UI is opened/closed so they remain mutually exclusive
+  React.useEffect(() => {
+    const isOpen = focused || loadingResults || (searchResults && searchResults.length > 0)
+    if (isOpen) {
+      window.dispatchEvent(new CustomEvent('infraster:search:open'))
+      // request left-panel to close when search opens (use context)
+      try {
+        closePanel()
+      } catch (e) {
+        // fallback to event if context isn't available
+        window.dispatchEvent(new CustomEvent('infraster:leftPanel:close'))
+      }
+    } else {
+      window.dispatchEvent(new CustomEvent('infraster:search:close'))
+    }
+  }, [focused, loadingResults, searchResults.length])
+
+  // compute positional classes depending on whether left panel is open and whether results are shown
+  const positionClass = (searchResults.length > 0 || loadingResults)
+    ? (leftPanelOpenCtx ? 'left-[calc(12rem+min(240px,56vw))] ' : 'left-16')
+    : (leftPanelOpenCtx ? 'top-4 left-[calc(12rem+min(240px,56vw))]' : 'top-4 left-24')
+
   return (
     <div
-      className={`fixed ${searchResults.length > 0 || loadingResults ? 'left-16 ' : 'top-4 left-24'} z-9998`}
+      className={`fixed ${positionClass} z-9998`}
       // allow the container to receive focus/blur events from its children
       tabIndex={-1}
       onFocus={() => setFocused(true)}
@@ -306,7 +340,7 @@ export default function SearchBar() {
                   {loadingResults ? (
                     <div className="p-3 text-sm text-gray-500">Recherche...</div>
                   ) : searchResults && searchResults.length > 0 ? (
-                    <div className="max-h-screen overflow-y-auto pb-[calc(2em+24px)]">
+                    <div className="max-h-screen min-h-screen overflow-y-auto pb-[calc(2em+24px)]">
                       {searchResults.slice(0, 100).map((item: any, idx: number) => (
                         <button
                           key={idx}
