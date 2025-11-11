@@ -20,6 +20,27 @@ const defaultIcon = L.icon({
 // Ensure markers use the default icon
 L.Marker.prototype.options.icon = defaultIcon;
 
+// Colored markers: red for infrastructures, grey for search results.
+const infraIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const searchIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png",
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
 type Props = {
   center?: [number, number];
   zoom?: number;
@@ -146,13 +167,13 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
         }
 
         // Optionally add a temporary marker
-        if (detail.addMarker) {
+            if (detail.addMarker) {
           try {
             // remove previous temporary marker if any
             ;(mapRef.current as any)._lastSearchMarker && (mapRef.current as any)._lastSearchMarker.remove()
           } catch (e) {}
           try {
-            const marker = L.marker(target as L.LatLngExpression).addTo(mapRef.current as any)
+            	    const marker = L.marker(target as L.LatLngExpression, { icon: searchIcon }).addTo(mapRef.current as any)
             ;(mapRef.current as any)._lastSearchMarker = marker
           } catch (e) {}
         }
@@ -314,7 +335,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
               const lon = parseFloat(it.lon)
               if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
               return (
-                <Marker key={it.id ?? `${lat}_${lon}`} position={[lat, lon]}>
+                <Marker key={it.id ?? `${lat}_${lon}`} position={[lat, lon]} icon={infraIcon}>
                   <Popup>
                     <div className="text-sm font-medium">{it.name ?? 'Infrastructure'}</div>
                     {it.adresse ? <div className="text-xs text-gray-600">{it.adresse}</div> : null}
