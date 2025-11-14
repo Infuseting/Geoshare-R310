@@ -38,11 +38,30 @@ export async function proxy(req: NextRequest) {
     })
 
     if (res.ok) {
+      let body: any = null
+      try {
+        body = await res.json()
+      } catch (e) {
+        body = null
+      }
+
+      if (pathname.startsWith("/dashboard")) {
+        const userType: string | null = body?.type ?? null
+        if (userType === "ENTREPRISE" || userType === "COLLECTIVITE") {
+          return NextResponse.next()
+        }
+        const url = req.nextUrl.clone()
+        url.pathname = "/"
+        return NextResponse.redirect(url)
+      }
+
       return NextResponse.next()
     }
   } catch (e) {
     // fallthrough to redirect
   }
+
+
 
   const url = req.nextUrl.clone()
   url.pathname = "/login"

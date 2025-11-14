@@ -56,6 +56,8 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
   const [mapZoom, setMapZoom] = React.useState<number>(zoom)
   const [mapInstance, setMapInstance] = React.useState<LeafletMapType | null>(null)
   const [infras, setInfras] = React.useState<Array<any>>([])
+  const [selectedInfraId, setSelectedInfraId] = React.useState<string | null>(null)
+  const [selectedInfra, setSelectedInfra] = React.useState<any | null>(null)
   const infraAbortRef = React.useRef<AbortController | null>(null)
   const infraDebounceRef = React.useRef<number | null>(null)
   const pendingInfraRef = React.useRef<string | null>(null)
@@ -66,6 +68,54 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
 
   // Left panel control
   const { openPanel } = useLeftPanel()
+
+  // Animated selected marker: create a divIcon and inject CSS for bounce
+  const selectedDivIcon = React.useMemo(() => {
+    return L.divIcon({
+      html: `<img class="infraster-selected-marker" src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" />`,
+      className: "infraster-selected-divicon",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+    })
+  }, [])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (document.getElementById('infraster-selected-marker-style')) return
+    const s = document.createElement('style')
+    s.id = 'infraster-selected-marker-style'
+    s.innerHTML = `
+@keyframes infraster-bounce { 0% { transform: translateY(0); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0); } }
+.infraster-selected-marker { animation: infraster-bounce 1s infinite; display: block; transform-origin: center bottom; }
+.infraster-selected-divicon { background: transparent; }
+`
+    document.head.appendChild(s)
+  }, [])
+
+  // fetch and cache selected infra details whenever selectedInfraId changes
+  React.useEffect(() => {
+    let mounted = true
+    try {
+      if (!selectedInfraId) {
+        setSelectedInfra(null)
+        return
+      }
+      ;(async () => {
+        try {
+          const res = await fetch(`/api/infra/id?id=${encodeURIComponent(String(selectedInfraId))}`, { credentials: 'same-origin' })
+          if (!mounted) return
+          if (!res.ok) return
+          const j = await res.json().catch(() => null)
+          if (!mounted) return
+          try { setSelectedInfra(j) } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
+      })()
+    } catch (e) {}
+    return () => { mounted = false }
+  }, [selectedInfraId])
 
   // Default center: try to use geolocation on mount; otherwise fallback to Caen
   const defaultCaen: [number, number] = [49.182863, -0.370679]
@@ -335,6 +385,19 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
             title: `Infrastructure #${params.infra}`,
             html: <InfraViewer infra={{ id: params.infra }} />,
           })
+          // mark as selected so the marker is animated
+          try { setSelectedInfraId(String(params.infra)) } catch (e) {}
+          // also fetch and cache details for the selected infra so it persists across viewport fetches
+          try {
+            ;(async () => {
+              try {
+                const res = await fetch(`/api/infra/id?id=${encodeURIComponent(String(params.infra))}`, { credentials: 'same-origin' })
+                if (!res.ok) return
+                const j = await res.json().catch(() => null)
+                try { setSelectedInfra(j) } catch (e) {}
+              } catch (e) {}
+            })()
+          } catch (e) {}
           // If URL doesn't include explicit coords, try to fetch infra details and recentre map
           if ((params.lat == null || params.lng == null) && params.infra) {
             pendingInfraRef.current = null
@@ -352,6 +415,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
                 if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
                   try { mapInstance.setView([latNum, lonNum], Math.max(13, mapInstance.getZoom())) } catch (e) {}
                   try { updateUrl({ lat: latNum, lng: lonNum, zoom: mapInstance.getZoom() }) } catch (e) {}
+                  try { setSelectedInfraId(String(params.infra)) } catch (e) {}
                 }
               } catch (e) {}
             })()
@@ -370,6 +434,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
         const m = name.match(/#(\w+)$/)
         if (!m || !m[1]) return
         const id = m[1]
+        try { setSelectedInfraId(String(id)) } catch (e) {}
         if (!mapInstance) {
           // store pending id and handle when mapInstance becomes available
           pendingInfraRef.current = id
@@ -416,7 +481,10 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
         if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
           try { mapInstance.setView([latNum, lonNum], Math.max(13, mapInstance.getZoom())) } catch (e) {}
           try { updateUrl({ lat: latNum, lng: lonNum, zoom: mapInstance.getZoom() }) } catch (e) {}
+          try { setSelectedInfraId(String(id)) } catch (e) {}
         }
+        // populate selectedInfra cache if possible
+        try { setSelectedInfra(j) } catch (e) {}
       } catch (e) {}
     })()
   }, [mapInstance])
@@ -425,6 +493,8 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
   React.useEffect(() => {
     function onLeftPanelClose() {
       try { updateUrl({ infra: null }) } catch (e) {}
+      try { setSelectedInfraId(null) } catch (e) {}
+      try { setSelectedInfra(null) } catch (e) {}
     }
     window.addEventListener('infraster:leftPanel:close', onLeftPanelClose)
     return () => window.removeEventListener('infraster:leftPanel:close', onLeftPanelClose)
@@ -508,10 +578,13 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
                 <Marker
                   key={it.id ?? `${lat}_${lon}`}
                   position={[lat, lon]}
-                  icon={infraIcon}
+                  icon={String(it.id) === String(selectedInfraId) ? selectedDivIcon : infraIcon}
                   eventHandlers={{
                     click: () => {
                       try {
+                        // mark selected id so marker animates
+                        try { setSelectedInfraId(String(it.id)) } catch (e) {}
+
                         // update URL so the selected infra is shareable/restorable
                         try {
                           const lat = parseFloat(it.lat)
@@ -521,8 +594,8 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
 
                         // open left panel with InfraViewer as html content
                         openPanel({
-                          name: it.name ?? "Infrastructure",
-                          title: it.name ?? "Infrastructure",
+                          name: it.name ?? `Infrastructure #${it.id}`,
+                          title: it.name ?? `Infrastructure #${it.id}`,
                           html: <InfraViewer infra={it} />,
                         })
                       } catch (e) {
@@ -530,11 +603,38 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
                       }
                     },
                   }}
-                >
-                </Marker>
+                />
               )
             })}
           </>
+        ) : null}
+        {/* Render selected infra even if it's not in the current viewport results */}
+        {selectedInfra && (!infras || !infras.find((i: any) => String(i.id) === String(selectedInfra.id))) ? (
+          (() => {
+            const lat = Number(selectedInfra.lat)
+            const lon = Number(selectedInfra.lon)
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+            return (
+              <Marker
+                key={`selected_${String(selectedInfra.id)}`}
+                position={[lat, lon]}
+                icon={selectedDivIcon}
+                zIndexOffset={1000}
+                eventHandlers={{
+                  click: () => {
+                    try { setSelectedInfraId(String(selectedInfra.id)) } catch (e) {}
+                    try {
+                      openPanel({
+                        name: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
+                        title: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
+                        html: <InfraViewer infra={selectedInfra} />,
+                      })
+                    } catch (e) {}
+                  },
+                }}
+              />
+            )
+          })()
         ) : null}
       </MapContainer>
 

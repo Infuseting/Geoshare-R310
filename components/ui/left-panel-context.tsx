@@ -58,19 +58,24 @@ export function LeftPanelProvider({ children }: { children: React.ReactNode }) {
 
   const closePanel = React.useCallback(() => {
     setOpen(false)
+    try { window.dispatchEvent(new CustomEvent('infraster:leftPanel:close')) } catch (e) {}
   }, [])
 
   const togglePanel = React.useCallback((p: LeftPanelPayload) => {
     // if same contentKey and currently open -> close
     if (p.name && open && p.name === contentKey) {
       setOpen(false)
+      try { window.dispatchEvent(new CustomEvent('infraster:leftPanel:close')) } catch (e) {}
       return
     }
+
+    // If switching to a different content while panel is open, update the
+    // content and keep the panel open. If panel is closed, open it.
     setContentKey(p.name)
     setTitle(p.title ?? p.name)
     setHtml(p.html)
-    setOpen((v) => !v)
-  try { window.dispatchEvent(new CustomEvent('infraster:leftPanel:openDetail', { detail: { name: p.name } })) } catch (e) {}
+    setOpen(true)
+    try { window.dispatchEvent(new CustomEvent('infraster:leftPanel:openDetail', { detail: { name: p.name } })) } catch (e) {}
     // same fetch logic when toggling open to update title from api if name contains an id
     try {
       const m = String(p.name ?? '').match(/#(\w+)$/)

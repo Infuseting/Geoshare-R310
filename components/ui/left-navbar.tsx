@@ -11,15 +11,41 @@ import {
 } from "lucide-react";
 import RecentSearches from "./recent-searches";
 import { useLeftPanel } from "./left-panel-context";
+import SignetsViewer from "./signets-viewer";
 
 export default function LeftNavbar() {
   const { togglePanel } = useLeftPanel();
   const router = useRouter();
+  const [userType, setUserType] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return
+        if (data && data.type) setUserType(data.type)
+        else setUserType(null)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setUserType(null)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
   const items = [
     { key: "menu", label: "Menu", icon: MenuIcon },
     { key: "bookmarks", label: "Signets", icon: Bookmark },
     { key: "search", label: "Recherche", icon: ScanSearch },
-    { key: "manager", label: "Gestionnaire", icon: Book },
+    {
+      key: "manager",
+      label: "Gestionnaire",
+      icon: Book,
+      href: "/dashboard",
+      allowedTypes: ["ENTREPRISE", "COLLECTIVITE"],
+    },
   ];
 
   return (
@@ -27,6 +53,11 @@ export default function LeftNavbar() {
       <div className="h-full flex flex-col items-center py-3 space-y-3 overflow-y-auto">
         {items.map((it) => {
           const Icon = it.icon;
+          // hide button if it has an allowedTypes restriction and current userType is not permitted
+          if (it.allowedTypes && !it.allowedTypes.includes(userType ?? "")) {
+            return null
+          }
+
           return (
             <div key={it.key} className="justify-center items-center flex flex-col">
               <button
@@ -37,15 +68,19 @@ export default function LeftNavbar() {
                 onClick={() => {
                   try {
                     if (it.key === "search") {
-                      // toggle left-panel open/close when clicking the search button
-                      // use the LeftPanel context directly (more reliable than window events)
                       togglePanel({
                         name: "Recherches récentes",
                         title: "Recherches récentes",
                         html: <RecentSearches vertical={false} />,
                       });
-                    } else if (it.key === "manager") {
-                      router.push("/dashboard/");
+                    } else if (it.key === "bookmarks") {
+                      togglePanel({
+                        name: "Signets",
+                        title: "Signets",
+                        html: <SignetsViewer />,
+                      })
+                    } else if (it.href) {
+                      router.push(it.href);
                     }
                   } catch (e) {
                     console.warn("failed to toggle leftPanel", e);
