@@ -47,6 +47,16 @@ export default function FilterSearchPanel() {
         const [distanceKm, setDistanceKm] = React.useState<number>(0)
         const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined)
         const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined)
+        const [userType, setUserType] = React.useState<string | null>(null)
+
+        React.useEffect(() => {
+            let mounted = true
+            fetch('/api/auth/me', { credentials: 'same-origin' })
+                .then((r) => r.json())
+                .then((data) => { if (!mounted) return; setUserType(data?.type ?? null) })
+                .catch(() => { if (!mounted) return; setUserType(null) })
+            return () => { mounted = false }
+        }, [])
 
         React.useEffect(() => {
                 let mounted = true
@@ -242,36 +252,41 @@ export default function FilterSearchPanel() {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-xs text-gray-600 mb-1 block">Types de pièces</label>
-                                <MultiComboBox options={piecesOptions} selected={selectedPieces} onChange={setSelectedPieces} placeholder="Sélectionner types de pièces" />
-                            </div>
+                            {userType === 'PARTICULIER' ? (
+                                null
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="text-xs text-gray-600 mb-1 block">Types de pièces</label>
+                                        <MultiComboBox options={piecesOptions} selected={selectedPieces} onChange={setSelectedPieces} placeholder="Sélectionner types de pièces" />
+                                    </div>
 
-                            <div>
-                                <label className="text-xs text-gray-600 mb-1 block">Types d'équipements</label>
-                                <MultiComboBox options={equipOptions} selected={selectedEquips} onChange={setSelectedEquips} placeholder="Sélectionner types d'équipements" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-600 mb-1 block">Accessibilités</label>
-                                <MultiComboBox options={accessOptions} selected={selectedAccess} onChange={setSelectedAccess} placeholder="Sélectionner accessibilités" />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs text-gray-600">Dates</label>
-                            </div>
-                            <div className="flex gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start text-left">
-                                            <CalendarIcon className="mr-2" />
-                                            {dateFrom ? format(dateFrom, 'PPP') : <span className="text-gray-500">Date de début</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={dateFrom} onSelect={(d) => setDateFrom(d as Date)} />
-                                    </PopoverContent>
-                                </Popover>
-
-                            </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 mb-1 block">Types d'équipements</label>
+                                        <MultiComboBox options={equipOptions} selected={selectedEquips} onChange={setSelectedEquips} placeholder="Sélectionner types d'équipements" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 mb-1 block">Accessibilités</label>
+                                        <MultiComboBox options={accessOptions} selected={selectedAccess} onChange={setSelectedAccess} placeholder="Sélectionner accessibilités" />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs text-gray-600">Dates</label>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="w-full justify-start text-left">
+                                                    <CalendarIcon className="mr-2" />
+                                                    {dateFrom ? format(dateFrom, 'PPP') : <span className="text-gray-500">Date de début</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar mode="single" selected={dateFrom} onSelect={(d) => setDateFrom(d as Date)} />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </>
+                            )}
                             <div className="w-full">
                                 <Button onClick={() => performFilterSearch()} className="w-full">Rechercher</Button>
                             </div>
