@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { useLeftPanel } from "./left-panel-context";
+import InfraViewer from "./infra-viewer";
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup } from "react-leaflet";
 import type { Map as LeafletMapType } from "leaflet";
 import L from "leaflet";
@@ -27,7 +29,7 @@ const infraIcon = L.icon({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
+
   shadowSize: [41, 41],
 });
 
@@ -37,7 +39,6 @@ const searchIcon = L.icon({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
 
@@ -55,11 +56,110 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
   const [mapZoom, setMapZoom] = React.useState<number>(zoom)
   const [mapInstance, setMapInstance] = React.useState<LeafletMapType | null>(null)
   const [infras, setInfras] = React.useState<Array<any>>([])
+  const [selectedInfraId, setSelectedInfraId] = React.useState<string | null>(null)
+  const [selectedInfra, setSelectedInfra] = React.useState<any | null>(null)
   const infraAbortRef = React.useRef<AbortController | null>(null)
   const infraDebounceRef = React.useRef<number | null>(null)
+  const pendingInfraRef = React.useRef<string | null>(null)
+
+  // NOTE: URL params handling and initial center/zoom are processed later, after
+  // the map instance is available. Keep a simple initialCenter for first render
+  // (user position if available, otherwise defaultCaen).
+
+  // Left panel control
+  const { openPanel } = useLeftPanel()
+
+  // Animated selected marker: create a divIcon and inject CSS for bounce
+  const selectedDivIcon = React.useMemo(() => {
+    return L.divIcon({
+      html: `<img class="infraster-selected-marker" src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" />`,
+      className: "infraster-selected-divicon",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+    })
+  }, [])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (document.getElementById('infraster-selected-marker-style')) return
+    const s = document.createElement('style')
+    s.id = 'infraster-selected-marker-style'
+    s.innerHTML = `
+@keyframes infraster-bounce { 0% { transform: translateY(0); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0); } }
+.infraster-selected-marker { animation: infraster-bounce 1s infinite; display: block; transform-origin: center bottom; }
+.infraster-selected-divicon { background: transparent; }
+`
+    document.head.appendChild(s)
+  }, [])
+
+  // fetch and cache selected infra details whenever selectedInfraId changes
+  React.useEffect(() => {
+    let mounted = true
+    try {
+      if (!selectedInfraId) {
+        setSelectedInfra(null)
+        return
+      }
+      ;(async () => {
+        try {
+          const res = await fetch(`/api/infra/id?id=${encodeURIComponent(String(selectedInfraId))}`, { credentials: 'same-origin' })
+          if (!mounted) return
+          if (!res.ok) return
+          const j = await res.json().catch(() => null)
+          if (!mounted) return
+          try { setSelectedInfra(j) } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
+      })()
+    } catch (e) {}
+    return () => { mounted = false }
+  }, [selectedInfraId])
 
   // Default center: try to use geolocation on mount; otherwise fallback to Caen
   const defaultCaen: [number, number] = [49.182863, -0.370679]
+  // read URL params for initial view or infra
+  function readUrlParams() {
+    try {
+      const u = new URL(window.location.href)
+      const sp = u.searchParams
+      const lat = sp.get('lat')
+      const lng = sp.get('lng')
+      const z = sp.get('zoom')
+      const infra = sp.get('infra')
+      return { lat: lat ? parseFloat(lat) : null, lng: lng ? parseFloat(lng) : null, zoom: z ? parseInt(z, 10) : null, infra }
+    } catch (e) {
+      return { lat: null, lng: null, zoom: null, infra: null }
+    }
+  }
+
+  function updateUrl(params: { lat?: number | null; lng?: number | null; zoom?: number | null; infra?: string | null }) {
+    try {
+      const u = new URL(window.location.href)
+      const sp = u.searchParams
+      if (typeof params.lat !== 'undefined') {
+        if (params.lat == null) sp.delete('lat')
+        else sp.set('lat', String(params.lat))
+      }
+      if (typeof params.lng !== 'undefined') {
+        if (params.lng == null) sp.delete('lng')
+        else sp.set('lng', String(params.lng))
+      }
+      if (typeof params.zoom !== 'undefined') {
+        if (params.zoom == null) sp.delete('zoom')
+        else sp.set('zoom', String(params.zoom))
+      }
+      if (typeof params.infra !== 'undefined') {
+        if (params.infra == null) sp.delete('infra')
+        else sp.set('infra', params.infra)
+      }
+      const newUrl = `${u.pathname}${u.search ? '?' + sp.toString() : ''}${u.hash}`
+      window.history.replaceState({}, '', newUrl)
+    } catch (e) {
+      // ignore
+    }
+  }
 
 
   // Try to get position on load, but don't force prompt if the user previously denied.
@@ -232,6 +332,11 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
       infraDebounceRef.current = window.setTimeout(() => {
         try {
           fetchInfrasForBounds(mapInstance.getBounds())
+          try {
+            // update URL with current center and zoom so view can be shared
+            const center = mapInstance.getCenter()
+            updateUrl({ lat: center.lat, lng: center.lng, zoom: mapInstance.getZoom() })
+          } catch (e) {}
         } catch (e) {}
       }, 200)
     }
@@ -260,6 +365,141 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
     }
   }, [mapInstance])
 
+
+  // When map instance is available, apply any URL params (center/zoom/infra)
+  React.useEffect(() => {
+    if (!mapInstance) return
+    try {
+      const params = readUrlParams()
+      if (params.lat != null && params.lng != null) {
+        try {
+          mapInstance.setView([params.lat, params.lng], params.zoom ?? mapInstance.getZoom())
+        } catch (e) {}
+      }
+
+      // If an infra id is present in the URL, open the left-panel for it
+      if (params.infra) {
+        try {
+          openPanel({
+            name: `Infrastructure #${params.infra}`,
+            title: `Infrastructure #${params.infra}`,
+            html: <InfraViewer infra={{ id: params.infra }} />,
+          })
+          // mark as selected so the marker is animated
+          try { setSelectedInfraId(String(params.infra)) } catch (e) {}
+          // also fetch and cache details for the selected infra so it persists across viewport fetches
+          try {
+            ;(async () => {
+              try {
+                const res = await fetch(`/api/infra/id?id=${encodeURIComponent(String(params.infra))}`, { credentials: 'same-origin' })
+                if (!res.ok) return
+                const j = await res.json().catch(() => null)
+                try { setSelectedInfra(j) } catch (e) {}
+              } catch (e) {}
+            })()
+          } catch (e) {}
+          // If URL doesn't include explicit coords, try to fetch infra details and recentre map
+          if ((params.lat == null || params.lng == null) && params.infra) {
+            pendingInfraRef.current = null
+            const infraId = String(params.infra)
+            ;(async () => {
+              try {
+                try { infraAbortRef.current?.abort() } catch (e) {}
+                const ac = new AbortController()
+                infraAbortRef.current = ac
+                const res = await fetch(`/api/infra/id?id=${encodeURIComponent(infraId)}`, { signal: ac.signal, credentials: 'same-origin' })
+                if (!res.ok) return
+                const j = await res.json().catch(() => null)
+                const latNum = Number(j?.lat)
+                const lonNum = Number(j?.lon)
+                if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+                  try { mapInstance.setView([latNum, lonNum], Math.max(13, mapInstance.getZoom())) } catch (e) {}
+                  try { updateUrl({ lat: latNum, lng: lonNum, zoom: mapInstance.getZoom() }) } catch (e) {}
+                  try { setSelectedInfraId(String(params.infra)) } catch (e) {}
+                }
+              } catch (e) {}
+            })()
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }, [mapInstance])
+
+  // Listen for openDetail events from left-panel so we can recentre when an infra is opened from a menu
+  React.useEffect(() => {
+    function onLeftPanelOpenDetail(e: Event) {
+      try {
+        const ce = e as CustomEvent
+        const name = String(ce.detail?.name ?? '')
+        const m = name.match(/#(\w+)$/)
+        if (!m || !m[1]) return
+        const id = m[1]
+        try { setSelectedInfraId(String(id)) } catch (e) {}
+        if (!mapInstance) {
+          // store pending id and handle when mapInstance becomes available
+          pendingInfraRef.current = id
+          return
+        }
+        ;(async () => {
+          try {
+            try { infraAbortRef.current?.abort() } catch (e) {}
+            const ac = new AbortController()
+            infraAbortRef.current = ac
+            const res = await fetch(`/api/infra/id?id=${encodeURIComponent(id)}`, { signal: ac.signal, credentials: 'same-origin' })
+            if (!res.ok) return
+            const j = await res.json().catch(() => null)
+            const latNum = Number(j?.lat)
+            const lonNum = Number(j?.lon)
+            if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+              try { mapInstance.setView([latNum, lonNum], Math.max(13, mapInstance.getZoom())) } catch (e) {}
+              try { updateUrl({ lat: latNum, lng: lonNum, zoom: mapInstance.getZoom() }) } catch (e) {}
+            }
+          } catch (e) {}
+        })()
+      } catch (e) {}
+    }
+    window.addEventListener('infraster:leftPanel:openDetail', onLeftPanelOpenDetail as EventListener)
+    return () => window.removeEventListener('infraster:leftPanel:openDetail', onLeftPanelOpenDetail as EventListener)
+  }, [mapInstance])
+
+  // If there was a pending infra id while mapInstance wasn't ready, apply it now
+  React.useEffect(() => {
+    if (!mapInstance) return
+    const id = pendingInfraRef.current
+    if (!id) return
+    pendingInfraRef.current = null
+    ;(async () => {
+      try {
+        try { infraAbortRef.current?.abort() } catch (e) {}
+        const ac = new AbortController()
+        infraAbortRef.current = ac
+        const res = await fetch(`/api/infra/id?id=${encodeURIComponent(id)}`, { signal: ac.signal, credentials: 'same-origin' })
+        if (!res.ok) return
+        const j = await res.json().catch(() => null)
+        const latNum = Number(j?.lat)
+        const lonNum = Number(j?.lon)
+        if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+          try { mapInstance.setView([latNum, lonNum], Math.max(13, mapInstance.getZoom())) } catch (e) {}
+          try { updateUrl({ lat: latNum, lng: lonNum, zoom: mapInstance.getZoom() }) } catch (e) {}
+          try { setSelectedInfraId(String(id)) } catch (e) {}
+        }
+        // populate selectedInfra cache if possible
+        try { setSelectedInfra(j) } catch (e) {}
+      } catch (e) {}
+    })()
+  }, [mapInstance])
+
+  // When the left-panel is closed elsewhere, clear the infra param from the URL
+  React.useEffect(() => {
+    function onLeftPanelClose() {
+      try { updateUrl({ infra: null }) } catch (e) {}
+      try { setSelectedInfraId(null) } catch (e) {}
+      try { setSelectedInfra(null) } catch (e) {}
+    }
+    window.addEventListener('infraster:leftPanel:close', onLeftPanelClose)
+    return () => window.removeEventListener('infraster:leftPanel:close', onLeftPanelClose)
+  }, [])
+
   return (
     <div className="w-full h-screen relative">
       {/* Disable the default zoomControl and add a ZoomControl positioned bottom-right */}
@@ -286,7 +526,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {/* Custom zoom buttons positioned middle-right */}
-        <div className="absolute right-4 bottom-4 z-[10000] flex flex-col space-y-2">
+  <div className="absolute right-4 bottom-4 z-10000 flex flex-col space-y-2">
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); if (mapRef.current) try { mapRef.current.zoomIn(); } catch (e) {} }}
@@ -335,20 +575,71 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
               const lon = parseFloat(it.lon)
               if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
               return (
-                <Marker key={it.id ?? `${lat}_${lon}`} position={[lat, lon]} icon={infraIcon}>
-                  <Popup>
-                    <div className="text-sm font-medium">{it.name ?? 'Infrastructure'}</div>
-                    {it.adresse ? <div className="text-xs text-gray-600">{it.adresse}</div> : null}
-                  </Popup>
-                </Marker>
+                <Marker
+                  key={it.id ?? `${lat}_${lon}`}
+                  position={[lat, lon]}
+                  icon={String(it.id) === String(selectedInfraId) ? selectedDivIcon : infraIcon}
+                  eventHandlers={{
+                    click: () => {
+                      try {
+                        // mark selected id so marker animates
+                        try { setSelectedInfraId(String(it.id)) } catch (e) {}
+
+                        // update URL so the selected infra is shareable/restorable
+                        try {
+                          const lat = parseFloat(it.lat)
+                          const lon = parseFloat(it.lon)
+                          updateUrl({ infra: String(it.id), lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lon) ? lon : null, zoom: mapRef.current ? mapRef.current.getZoom() : null })
+                        } catch (e) {}
+
+                        // open left panel with InfraViewer as html content
+                        openPanel({
+                          name: it.name ?? `Infrastructure #${it.id}`,
+                          title: it.name ?? `Infrastructure #${it.id}`,
+                          html: <InfraViewer infra={it} />,
+                        })
+                      } catch (e) {
+                        console.warn("failed to open left panel for infra", e)
+                      }
+                    },
+                  }}
+                />
               )
             })}
           </>
         ) : null}
+        {/* Render selected infra even if it's not in the current viewport results */}
+        {selectedInfra && (!infras || !infras.find((i: any) => String(i.id) === String(selectedInfra.id))) ? (
+          (() => {
+            const lat = Number(selectedInfra.lat)
+            const lon = Number(selectedInfra.lon)
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+            return (
+              <Marker
+                key={`selected_${String(selectedInfra.id)}`}
+                position={[lat, lon]}
+                icon={selectedDivIcon}
+                zIndexOffset={1000}
+                eventHandlers={{
+                  click: () => {
+                    try { setSelectedInfraId(String(selectedInfra.id)) } catch (e) {}
+                    try {
+                      openPanel({
+                        name: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
+                        title: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
+                        html: <InfraViewer infra={selectedInfra} />,
+                      })
+                    } catch (e) {}
+                  },
+                }}
+              />
+            )
+          })()
+        ) : null}
       </MapContainer>
 
       {/* Center-on-me button positioned bottom-left near controls */}
-      <div className="absolute bottom-4 right-16 z-[10000]">
+  <div className="absolute bottom-4 right-16 z-10000">
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); handleCenterOnMe(); }}

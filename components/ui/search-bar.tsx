@@ -15,6 +15,7 @@ export default function SearchBar() {
   const [loadingSuggestions, setLoadingSuggestions] = React.useState(false)
   const [searchResults, setSearchResults] = React.useState<Array<any>>([])
   const [loadingResults, setLoadingResults] = React.useState(false)
+  const [filterPanelOpen, setFilterPanelOpen] = React.useState(false)
 
   // Helper to build a short subtitle from Nominatim address details (city / county / state / postcode)
   function buildSubtitleFromNominatim(item: any) {
@@ -289,10 +290,33 @@ export default function SearchBar() {
     }
   }, [focused, loadingResults, searchResults.length])
 
+  // Hide search bar when filter panel is open anywhere
+  React.useEffect(() => {
+    function onFilterOpen() {
+      try { setFilterPanelOpen(true) } catch (e) {}
+      // also close current search UI
+      try { setFocused(false) } catch (e) {}
+      try { setSearchResults([]) } catch (e) {}
+      try { setSuggestions([]) } catch (e) {}
+    }
+    function onFilterClose() {
+      try { setFilterPanelOpen(false) } catch (e) {}
+    }
+    window.addEventListener('infraster:filter:open', onFilterOpen)
+    window.addEventListener('infraster:filter:close', onFilterClose)
+    return () => {
+      window.removeEventListener('infraster:filter:open', onFilterOpen)
+      window.removeEventListener('infraster:filter:close', onFilterClose)
+    }
+  }, [])
+
   // compute positional classes depending on whether left panel is open and whether results are shown
   const positionClass = (searchResults.length > 0 || loadingResults)
     ? (leftPanelOpenCtx ? 'left-[calc(12rem+min(240px,56vw))] ' : 'left-16')
     : (leftPanelOpenCtx ? 'top-4 left-[calc(12rem+min(240px,56vw))]' : 'top-4 left-24')
+
+  // hide entirely when filter panel is open
+  if (filterPanelOpen) return null
 
   return (
     <div
@@ -430,6 +454,14 @@ export default function SearchBar() {
 
                                 // If this history entry is a saved "search" (a previous full query),
                                 // write it into the input and perform a full search to show results.
+                                // If this saved history entry contains full filters, dispatch an event
+                                if (item && (item.filters || item.filter)) {
+                                  try { window.dispatchEvent(new CustomEvent('infraster:executeFilterSearch', { detail: item })) } catch (e) {}
+                                  setQ('')
+                                  setFocused(false)
+                                  return
+                                }
+
                                 if (item.type === 'search') {
                                   setQ(item.title)
                                   performFullSearch(item.title)

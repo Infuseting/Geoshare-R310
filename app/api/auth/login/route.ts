@@ -38,6 +38,12 @@ export async function POST(req: Request) {
       { status: 200, headers: { "Set-Cookie": cookie } }
     )
   } catch (err: any) {
+    // Map DB connection timeouts to 504 so clients see a clear "upstream" failure instead of generic 500.
+    const msg = String(err?.message ?? '');
+    if (err?.code === 'ETIMEDOUT' || /ETIMEDOUT/i.test(msg) || /connect ETIMEDOUT/i.test(msg)) {
+      return NextResponse.json({ error: 'Database connection timed out' }, { status: 504 })
+    }
+
     return NextResponse.json({ error: err?.message ?? String(err) }, { status: 500 })
   }
 }

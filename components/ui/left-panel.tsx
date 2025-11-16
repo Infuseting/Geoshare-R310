@@ -33,14 +33,14 @@ export default function LeftPanel({name, children}: {name?: string, children?: R
       {open && (
         <div
           id="left-panel"
-          className="fixed left-16 top-0 h-screen w-[min(320px,56vw)] max-h-screen bg-white shadow-md z-9998 overflow-auto rounded-r-2xl p-4"
+          className="fixed left-16 top-0 h-screen w-[min(320px,56vw)] max-h-screen bg-white shadow-md z-9998 overflow-auto rounded-r-2xl"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 px-4 pt-4">
             <h3 className="font-semibold">{title ?? name ?? 'Panneau'}</h3>
             <button onClick={() => closePanel()} className="text-sm text-gray-500">☰</button>
           </div>
-
           <div>
+
             {children}
             {/* render any React node passed as html */}
             {html && <div className="mt-2">{html}</div>}

@@ -56,6 +56,7 @@ export default function UserMenu({ name }: { name?: string }) {
 
   const router = useRouter()
   const [loggingOut, setLoggingOut] = React.useState(false)
+  const [deleting, setDeleting] = React.useState(false)
 
   async function handleLogout() {
     if (loggingOut) return
@@ -83,6 +84,33 @@ export default function UserMenu({ name }: { name?: string }) {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (deleting) return
+    const ok = confirm("Voulez-vous vraiment supprimer définitivement votre compte ? Cette action est irréversible.")
+    if (!ok) return
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/auth/delete", { method: "POST", credentials: "same-origin" })
+      if (res.ok) {
+        try {
+          localStorage.removeItem("userName")
+        } catch (e) {
+          // ignore localStorage errors
+        }
+        // Navigate to registration page after deletion
+        router.push("/register")
+        return
+      }
+      // If the delete failed, still navigate to login to ensure unauthenticated state
+      router.push("/login")
+    } catch (e) {
+      // On error, still try to navigate to login
+      router.push("/login")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -105,6 +133,17 @@ export default function UserMenu({ name }: { name?: string }) {
             aria-disabled={loggingOut}
           >
             {loggingOut ? "Logging out..." : "Logout"}
+          </button>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <button
+            onClick={handleDeleteAccount}
+            className="w-full text-left text-red-600"
+            disabled={deleting}
+            aria-disabled={deleting}
+          >
+            {deleting ? "Suppression..." : "Supprimer mon compte"}
           </button>
         </DropdownMenuItem>
       </DropdownMenuContent>

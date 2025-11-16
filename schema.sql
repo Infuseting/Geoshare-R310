@@ -89,15 +89,18 @@ CREATE TABLE `user` (
   `name` longtext NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `has_Piece` (
+  `idInfrastructure` varchar(20) NOT NULL,
+  `idPiece` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Indexes for dumped tables
---
+CREATE TABLE `Piece` (
+  `idPiece` int NOT NULL,
+  `Name` longtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Indexes for table `Accessibilite`
---
-ALTER TABLE `Accessibilite`
+
+--ALTER TABLE `Accessibilite`
   ADD PRIMARY KEY (`idAccessibilite`);
 
 --
@@ -150,6 +153,13 @@ ALTER TABLE `has_Equipements`
   ADD KEY `fk_Equipements_has_Infrastructure_Equipements1_idx` (`idEquipements`);
 
 --
+-- Indexes for table `has_Piece`
+--
+ALTER TABLE `has_Piece`
+  ADD PRIMARY KEY (`idInfrastructure`,`idPiece`),
+  ADD KEY `idPiece` (`idPiece`);
+
+--
 -- Indexes for table `Informations`
 --
 ALTER TABLE `Informations`
@@ -170,6 +180,12 @@ ALTER TABLE `is_accessible`
   ADD PRIMARY KEY (`idInfrastructure`,`idAccessibilite`),
   ADD KEY `fk_Infrastructure_has_Accessibilite_Accessibilite1_idx` (`idAccessibilite`),
   ADD KEY `fk_Infrastructure_has_Accessibilite_Infrastructure1_idx` (`idInfrastructure`);
+
+--
+-- Indexes for table `Piece`
+--
+ALTER TABLE `Piece`
+  ADD PRIMARY KEY (`idPiece`);
 
 --
 -- Indexes for table `Region`
@@ -208,7 +224,7 @@ ALTER TABLE `Accessibilite`
 -- AUTO_INCREMENT for table `access_token`
 --
 ALTER TABLE `access_token`
-  MODIFY `idToken` int NOT NULL AUTO_INCREMENT;
+  MODIFY `idToken` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `Commune`
@@ -229,6 +245,12 @@ ALTER TABLE `Informations`
   MODIFY `idInformations` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `Piece`
+--
+ALTER TABLE `Piece`
+  MODIFY `idPiece` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
+
+--
 -- AUTO_INCREMENT for table `Region`
 --
 ALTER TABLE `Region`
@@ -244,7 +266,7 @@ ALTER TABLE `responsable`
 -- AUTO_INCREMENT for table `user`
 --
 ALTER TABLE `user`
-  MODIFY `idUser` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72863;
+  MODIFY `idUser` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72866;
 
 --
 -- Constraints for dumped tables
@@ -276,6 +298,13 @@ ALTER TABLE `EPCI_has_Region`
 ALTER TABLE `has_Equipements`
   ADD CONSTRAINT `fk_Equipements_has_Infrastructure_Equipements1` FOREIGN KEY (`idEquipements`) REFERENCES `Equipements` (`idEquipements`),
   ADD CONSTRAINT `fk_Equipements_has_Infrastructure_Infrastructure1` FOREIGN KEY (`idInfrastrcture`) REFERENCES `Infrastructure` (`idInfrastructure`);
+
+--
+-- Constraints for table `has_Piece`
+--
+ALTER TABLE `has_Piece`
+  ADD CONSTRAINT `has_Piece_ibfk_1` FOREIGN KEY (`idPiece`) REFERENCES `Piece` (`idPiece`),
+  ADD CONSTRAINT `has_Piece_ibfk_2` FOREIGN KEY (`idInfrastructure`) REFERENCES `Infrastructure` (`idInfrastructure`);
 
 --
 -- Constraints for table `Informations`

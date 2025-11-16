@@ -8,6 +8,37 @@ import type { NextRequest } from "next/server"
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  const tokenFromCookie = req.cookies.get("access_token")?.value
+
+  // If root is requested, let unauthenticated users see it, but
+  // redirect authenticated users to `/map`.
+  if (pathname === "/") {
+    if (!tokenFromCookie) {
+      return NextResponse.next()
+    }
+
+    try {
+      const origin = req.nextUrl.origin
+      const res = await fetch(`${origin}/api/auth/verify`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${tokenFromCookie}`,
+        },
+      })
+
+      if (res.ok) {
+        const url = req.nextUrl.clone()
+        url.pathname = "/map"
+        return NextResponse.redirect(url)
+      }
+    } catch (e) {
+      // fallthrough to allow viewing `/` if verification fails
+    }
+
+    return NextResponse.next()
+  }
+
   // Skip public and API routes, and the login/register pages
   if (
     pathname.startsWith("/_next") ||
@@ -38,11 +69,30 @@ export async function proxy(req: NextRequest) {
     })
 
     if (res.ok) {
+      let body: any = null
+      try {
+        body = await res.json()
+      } catch (e) {
+        body = null
+      }
+
+      if (pathname.startsWith("/dashboard")) {
+        const userType: string | null = body?.type ?? null
+        if (userType === "ENTREPRISE" || userType === "COLLECTIVITE") {
+          return NextResponse.next()
+        }
+        const url = req.nextUrl.clone()
+        url.pathname = "/"
+        return NextResponse.redirect(url)
+      }
+
       return NextResponse.next()
     }
   } catch (e) {
     // fallthrough to redirect
   }
+
+
 
   const url = req.nextUrl.clone()
   url.pathname = "/login"

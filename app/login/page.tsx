@@ -32,7 +32,7 @@ export default function LoginPage() {
 				alert(data?.error || "Login failed")
 				return
 			}
-			router.push("/")
+			router.push("/map")
 		} finally {
 			setLoading(false)
 		}
