@@ -170,7 +170,7 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
             
             <div className='w-full h-0.5 border-t'></div>
             <div className='flex flex-row flex-wrap px-4 justify-center space-y-4'>
-                <div onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                <div onClick={async (e: React.MouseEvent<HTMLDivElement>) => {
                             try {
                                 const parts = [
                                     detail?.adresse ?? infra?.adresse,
@@ -211,7 +211,7 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
                     <div className='flex-1' />
                     <ChevronRight className="h-5 w-5 text-gray-500" />
                 </div>
-                <div className='w-full space-x-2 flex flex-row items-center hover:bg-gray-100/90 p-2 rounded-md cursor-pointer' onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                <div className='w-full space-x-2 flex flex-row items-center hover:bg-gray-100/90 p-2 rounded-md cursor-pointer' onClick={async (e: React.MouseEvent<HTMLDivElement>) => {
                             try {
                                 const email = detail?.responsable?.email ?? ''
                                 const pendingId = toast({ title: 'Copie en cours...', description: 'Préparation de l’email...', duration: 0 })

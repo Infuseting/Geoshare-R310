@@ -29,7 +29,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <LeftPanelProvider>
+          <LeftPanel />
+          {children}
+        </LeftPanelProvider>
       </body>
     </html>
   );

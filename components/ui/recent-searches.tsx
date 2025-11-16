@@ -2,9 +2,12 @@
 
 import React from 'react'
 import { MagnetIcon } from 'lucide-react'
+import { useLeftPanel } from './left-panel-context'
+import FilterSearchPanel from './filter-search-panel'
 
 export default function RecentSearches({vertical  } : {vertical?: boolean}) {
   const [searches, setSearches] = React.useState<Array<any>>([])
+  const { openPanel } = useLeftPanel()
 
   React.useEffect(() => {
     try {
@@ -27,11 +30,51 @@ export default function RecentSearches({vertical  } : {vertical?: boolean}) {
     <div className="w-full px-2">
       {searches.map((s: any, idx: number) => (
         <div key={idx} className={` items-center flex ${vertical ? 'flex-col justify-center' : 'flex-row'} ${vertical ? '' : 'hover:bg-gray-100 rounded-md cursor-pointer'}`}  onClick={() => {
-              // emit a custom event with the query so other parts (like SearchBar) may react
               try {
+                const ANIM_MS = 500
+
+                // If this recent search includes filters (saved from filter search),
+                // open the filter panel and then dispatch an event that will re-execute the filtered search.
+                if (s && (s.filters || s.filter)) {
+                  try {
+                    if (openPanel) openPanel({ name: 'Recherche par filtres', title: 'Recherche par filtres', html: <FilterSearchPanel /> })
+                  } catch (e) {}
+                  window.setTimeout(() => {
+                    try { window.dispatchEvent(new CustomEvent('infraster:executeFilterSearch', { detail: s })) } catch (e) {}
+                  }, ANIM_MS)
+                  return
+                }
+
+                // If the saved item contains coordinates (lat/lon) but no filters,
+                // open the filter panel and re-run the filter search by creating a minimal filters object using the stored coords.
+                if (s && (s.lat != null || s.lon != null)) {
+                  try {
+                    if (openPanel) openPanel({ name: 'Recherche par filtres', title: 'Recherche par filtres', html: <FilterSearchPanel /> })
+                  } catch (e) {}
+                  const detail = {
+                    filters: {
+                      q: s.title || '',
+                      pieces: [],
+                      equipments: [],
+                      accessibilites: [],
+                      distanceKm: 0,
+                      centerLat: s.lat != null ? Number(s.lat) : null,
+                      centerLon: s.lon != null ? Number(s.lon) : null,
+                      dateFrom: null,
+                      dateTo: null,
+                      limit: 100
+                    }
+                  }
+                  window.setTimeout(() => {
+                    try { window.dispatchEvent(new CustomEvent('infraster:executeFilterSearch', { detail })) } catch (e) {}
+                  }, ANIM_MS)
+                  return
+                }
+
+                // otherwise emit a simple searchQuery event with the title
                 window.dispatchEvent(new CustomEvent('infraster:searchQuery', { detail: { q: s.title } }))
               } catch (e) {
-                console.warn('failed to dispatch searchQuery', e)
+                console.warn('failed to dispatch recent search event', e)
               }
             }}>
           <button
