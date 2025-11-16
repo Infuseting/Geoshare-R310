@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 const Carte = dynamic(() => import("../../components/ui/dashboarCarte"), {
   ssr: false,
 });
+
+import { Undo2, Plus } from "lucide-react";
 /* Types */
 type InfrastructureType =
   | "Multisports/City-stades"
@@ -197,9 +199,10 @@ export default function DashboardPage(): JSX.Element {
               window.location.href = "/map";
             }}
             aria-label="Retour à l'accueil"
-            className="z-50 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
+            className="z-50 inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 bg-gray-100 text-gray-800 text-sm font-medium hover:bg-gray-200 "
           >
-            X
+            <Undo2 className="w-4 h-4" />
+            Retour
           </button>
         </div>
         <div>
@@ -214,9 +217,10 @@ export default function DashboardPage(): JSX.Element {
         <div className="flex gap-2">
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#0ea5a4] text-white border-0 py-2.5 px-3.5 rounded-lg cursor-pointer font-extrabold"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-gray-300 bg-gray-100 text-sm text-gray-800 font-semibold hover:bg-gray-200 "
           >
-            + Ajouter une infrastructure
+            <Plus className="w-4 h-4" />
+            Ajouter une infrastructure
           </button>
         </div>
       </header>

@@ -39,23 +39,19 @@ export default function Carte({
   infrastructures: Infrastructure[];
 }) {
   const defcenter: [number, number] = (() => {
-    const first = infrastructures[0];
-    if (
-      infrastructures.length > 0 &&
-      typeof first?.latitude === "number" &&
-      typeof first?.longitude === "number"
-    ) {
-      return [first.latitude, first.longitude];
-    }
-    return [48.8566, 2.3522]; // fallback Paris
+    const first = infrastructures.find(
+      (i) => typeof i.latitude === "number" && typeof i.longitude === "number"
+    );
+    return first
+      ? [first.latitude as number, first.longitude as number]
+      : [48.8566, 2.3522]; // fallback Paris
   })();
-
   return (
     <div className="bg-white rounded-[10px] p-3">
       <h4 className="mb-2">Carte</h4>
       <div className="h-[300px] rounded-[8px] overflow-hidden">
         <MapContainer
-          center={defcenter}
+          center={[48.8566, 2.3522]}
           zoom={13}
           scrollWheelZoom={false}
           className="h-full w-full"
@@ -64,6 +60,7 @@ export default function Carte({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {defcenter && <MapCenterUpdater center={defcenter} />}
           {infrastructures
             .filter(
               (i) =>
