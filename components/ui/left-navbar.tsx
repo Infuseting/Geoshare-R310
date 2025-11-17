@@ -54,7 +54,7 @@ export default function LeftNavbar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-[9999] w-16 bg-white border-r border-gray-100 shadow-sm">
-      <div className="h-full flex flex-col items-center py-3 space-y-3 overflow-y-auto">
+      <div className="h-full flex flex-col items-center py-3 space-y-3 overflow-y-hidden">
         {items.map((it) => {
           const Icon = it.icon;
           // hide button if it has an allowedTypes restriction and current userType is not permitted
@@ -108,12 +108,15 @@ export default function LeftNavbar() {
           );
         })}
         <div className="border-t border-gray-200 w-full " />
-
-        <RecentSearches vertical={true} />
+        <div className="w-full" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'hidden' }}>
+          <RecentSearches vertical={true} />
+        </div>
 
         <div className="flex-1" />
 
-        <UserMenu />
+        <div className="w-full flex items-center justify-center">
+          <UserMenu />
+        </div>
       </div>
     </aside>
   );

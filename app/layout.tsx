@@ -29,10 +29,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LeftPanelProvider>
-          <LeftPanel />
-          {children}
-        </LeftPanelProvider>
+        
+        {children}
       </body>
     </html>
   );

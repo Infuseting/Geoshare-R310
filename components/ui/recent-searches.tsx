@@ -5,7 +5,7 @@ import { MagnetIcon } from 'lucide-react'
 import { useLeftPanel } from './left-panel-context'
 import FilterSearchPanel from './filter-search-panel'
 
-export default function RecentSearches({vertical  } : {vertical?: boolean}) {
+export default function RecentSearches({vertical, maxItems } : {vertical?: boolean, maxItems?: number}) {
   const [searches, setSearches] = React.useState<Array<any>>([])
   const { openPanel } = useLeftPanel()
 
@@ -16,7 +16,7 @@ export default function RecentSearches({vertical  } : {vertical?: boolean}) {
       const arr = JSON.parse(raw)
       const filtered = (arr || []).filter((r: any) => r && r.type === 'search')
       // the history stored by addToHistory places newest items first, so keep order
-      setSearches(filtered.slice(0, 10))
+      setSearches(filtered.slice(0, 11))
     } catch (e) {
       console.warn('failed to load recent searches', e)
     }
@@ -26,9 +26,11 @@ export default function RecentSearches({vertical  } : {vertical?: boolean}) {
     return <div className="text-xs text-gray-400 px-2">Aucune recherche récente</div>
   }
 
+  const visible = typeof maxItems === 'number' ? searches.slice(0, maxItems) : searches.slice(0, 15)
+
   return (
-    <div className="w-full px-2">
-      {searches.map((s: any, idx: number) => (
+    <div className="w-full px-2 py-auto h-full">
+      {visible.map((s: any, idx: number) => (
         <div key={idx} className={` items-center flex ${vertical ? 'flex-col justify-center' : 'flex-row'} ${vertical ? '' : 'hover:bg-gray-100 rounded-md cursor-pointer'}`}  onClick={() => {
               try {
                 const ANIM_MS = 500

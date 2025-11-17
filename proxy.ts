@@ -10,8 +10,6 @@ export async function proxy(req: NextRequest) {
 
   const tokenFromCookie = req.cookies.get("access_token")?.value
 
-  // If root is requested, let unauthenticated users see it, but
-  // redirect authenticated users to `/map`.
   if (pathname === "/") {
     if (!tokenFromCookie) {
       return NextResponse.next()

@@ -137,21 +137,26 @@ export default function UserMenu({ name }: { name?: string }) {
             {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          { userType === 'PARTICULIER' || userType === 'ASSOCIATION' ? (
-            null
+        { userType === 'PARTICULIER' || userType === 'ASSOCIATION' ? (
+          <>
+          <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+            
+                <button
+                onClick={handleDeleteAccount}
+                className="w-full text-left text-red-600"
+                disabled={deleting}
+                aria-disabled={deleting}
+              >
+                {deleting ? "Suppression..." : "Supprimer mon compte"}
+              </button>
+            </DropdownMenuItem>
+          </>
           ) : (
-          <button
-            onClick={handleDeleteAccount}
-            className="w-full text-left text-red-600"
-            disabled={deleting}
-            aria-disabled={deleting}
-          >
-            {deleting ? "Suppression..." : "Supprimer mon compte"}
-          </button>
-          )}
-        </DropdownMenuItem>
+            null
+          
+          
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
