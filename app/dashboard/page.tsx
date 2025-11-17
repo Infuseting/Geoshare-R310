@@ -1,75 +1,80 @@
 "use client";
 
 import React, { JSX, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import AccordeonInfra from "../../components/accordeonInfra";
+import InfraEdit from "../../components/ui/infraEdit";
+import InfraAddModal from "@/components/ui/infraAddModal";
 
+const Carte = dynamic(() => import("../../components/ui/dashboarCarte"), {
+  ssr: false,
+});
+
+import { Undo2, Plus } from "lucide-react";
 /* Types */
-type InfrastructureType = "Route" | "Eau" | "Eclairage" | "Batiment" | "Autre";
+type InfrastructureType =
+  | "Multisports/City-stades"
+  | "Boucle de randonnée"
+  | "Salle de musculation/cardiotraining"
+  | "Salle multisports (gymnase)"
+  | "Bassin mixte de natation"
+  | "Carrière"
+  | "Terrain de pétanque"
+  | "Terrain de football"
+  | "Terrain de basket-ball"
+  | "Dojo / Salle d'arts martiaux"
+  | "Autre";
 
 export type Infrastructure = {
   id: string;
   name: string;
   type: InfrastructureType;
   address?: string;
+  city?: string;
+  postalCode?: string;
   status: "Ouvert" | "Fermé" | "Plein";
-  createdAt: string; // ISO
+  createdAt: string;
   latitude?: number;
   longitude?: number;
   description?: string;
+  piece?: string;
+  accessibility?: string;
 };
 
 /* Utils */
 const uid = (prefix = "") => prefix + Math.random().toString(36).slice(2, 9);
 
-const formatDate = (iso: string) =>
+export const formatDate = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
     dateStyle: "short",
     timeStyle: "short",
   });
 
-/* Mock API (replace with real API calls) */
-const initialMockData = (): Infrastructure[] => [
-  {
-    id: uid("i_"),
-    name: "Test",
-    type: "Eau",
-    address: "Rue des Sources, 14000 Caen",
-    status: "Ouvert",
-    createdAt: new Date().toISOString(),
-    latitude: 49.182863,
-    longitude: -0.370679,
-    description: "test description",
-  },
-  {
-    id: uid("i_"),
-    name: "Pont de test",
-    type: "Route",
-    address: "Avenue du Pont",
-    status: "Fermé",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-    latitude: 49.1835,
-    longitude: -0.3702,
-    description: "Gros pont",
-  },
-];
-
-const mockFetchInfrastructures = async (): Promise<Infrastructure[]> => {
-  await new Promise((r) => setTimeout(r, 300));
-  return initialMockData();
+/* API calls */
+const fetchInfrastructures = async (): Promise<Infrastructure[]> => {
+  const res = await fetch("/api/infra/my");
+  if (!res.ok) {
+    throw new Error("Failed to fetch infrastructures");
+  }
+  return res.json();
 };
 
-const mockCreateInfrastructure = async (
+const createInfrastructure = async (
   payload: Omit<Infrastructure, "id" | "createdAt">
 ): Promise<Infrastructure> => {
-  await new Promise((r) => setTimeout(r, 300));
-  return {
-    ...payload,
-    id: uid("i_"),
-    createdAt: new Date().toISOString(),
-  };
+  const res = await fetch("/api/infra/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to create infrastructure");
+  }
+  return res.json();
 };
 
 /* Small UI primitives */
-const Badge: React.FC<{
+export const Badge: React.FC<{
   children: React.ReactNode;
   variant?: "neutral" | "success" | "warn";
 }> = ({ children, variant = "neutral" }) => {
@@ -82,14 +87,8 @@ const Badge: React.FC<{
   const color = variant === "warn" ? "#92400e" : "#0f172a";
   return (
     <span
-      style={{
-        background: bg,
-        color,
-        padding: "4px 8px",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: 600,
-      }}
+      className="inline-block px-2 py-1 rounded-lg text-xs font-semibold"
+      style={{ background: bg, color }}
     >
       {children}
     </span>
@@ -98,9 +97,26 @@ const Badge: React.FC<{
 
 /* Dashboard Page */
 export default function DashboardPage(): JSX.Element {
+  const [editingInfra, setEditingInfra] = useState<Infrastructure | null>(null);
+  const [infrastructures, setInfrastructures] = useState<Infrastructure[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleAddInfra = (newInfra: Infrastructure) => {
+    setItems((prev) => [newInfra, ...prev]); // ou [...prev, newInfra] selon l’ordre souhaité
+    setPage(1); // pour revenir à la première page et voir l’ajout
+  };
+
+  const handleSave = (updated: Infrastructure) => {
+    alert(`Infrastructure mise à jour : `);
+  };
+  const [selectedCenter, setSelectedCenter] = useState<[number, number] | null>(
+    null
+  );
+  const [selectedInfraId, setSelectedInfraId] = useState<string | null>(null);
   const [items, setItems] = useState<Infrastructure[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userType, setUserType] = useState<string | null>(null);
 
   /* UI state */
   const [query, setQuery] = useState("");
@@ -118,17 +134,47 @@ export default function DashboardPage(): JSX.Element {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    mockFetchInfrastructures()
-      .then((data) => setItems(data))
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+    // Check user authentication and type
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (!res.ok) {
+          window.location.href = "/login";
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        setUserType(data.type);
+
+        // Only ENTREPRISE, COLLECTIVITE, and ASSOCIATION can access dashboard
+        if (
+          !["ENTREPRISE", "COLLECTIVITE", "ASSOCIATION"].includes(data.type)
+        ) {
+          alert(
+            "Vous devez être une entreprise, collectivité ou association pour accéder au dashboard."
+          );
+          window.location.href = "/";
+          return;
+        }
+
+        // Fetch infrastructures
+        setLoading(true);
+        fetchInfrastructures()
+          .then((data) => setItems(data))
+          .catch((e) => setError(String(e)))
+          .finally(() => setLoading(false));
+      })
+      .catch((e) => {
+        console.error("Auth check failed:", e);
+        window.location.href = "/login";
+      });
   }, []);
 
   /* Derived data (search + filters) */
   const filtered = useMemo(() => {
     return items.filter((it) => {
-      if (typeFilter !== "All" && it.type !== typeFilter) return false;
+      if (typeFilter !== "All" && !it.type.includes(typeFilter)) return false;
       if (statusFilter !== "All" && it.status !== statusFilter) return false;
       if (!query) return true;
       const q = query.toLowerCase();
@@ -155,7 +201,7 @@ export default function DashboardPage(): JSX.Element {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await mockCreateInfrastructure(payload);
+      const created = await createInfrastructure(payload);
       setItems((s) => [created, ...s]);
       setShowForm(false);
       setPage(1);
@@ -167,86 +213,77 @@ export default function DashboardPage(): JSX.Element {
   };
 
   return (
-    <div
-      style={{
-        padding: 20,
-        fontFamily: "Inter, Roboto, system-ui, sans-serif",
-        maxWidth: 1100,
-        margin: "0 auto",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
+    <div className="p-5 font-sans max-w-[1100px] mx-auto">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className=" flex  self-start md:self-center gap-2">
+          {" "}
+          <button
+            onClick={() => {
+              window.location.href = "/map";
+            }}
+            aria-label="Retour à l'accueil"
+            className="z-50 inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 bg-gray-100 text-gray-800 text-sm font-medium hover:bg-gray-200 "
+          >
+            <Undo2 className="w-4 h-4" />
+            Retour
+          </button>
+        </div>
         <div>
-          <h2 style={{ margin: 0 }}>Tableau de bord des infrastructures</h2>
-          <p style={{ margin: "6px 0 0", color: "#475569" }}>
+          <h2 className="m-0 text-xl font-semibold">
+            Tableau de bord des infrastructures
+          </h2>
+          <p className="mt-1.5 text-slate-600">
             Voir, filtrer et ajouter des infrastructures de la collectivité
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+
+        <div className="flex gap-2">
           <button
-            onClick={() => setShowForm(true)}
-            style={{
-              background: "#0ea5a4",
-              color: "white",
-              border: "none",
-              padding: "10px 14px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-gray-300 bg-gray-100 text-sm text-gray-800 font-semibold hover:bg-gray-200 "
           >
-            + Ajouter une infrastructure
+            <Plus className="w-4 h-4" />
+            Ajouter une infrastructure
           </button>
         </div>
       </header>
 
-      <main
-        style={{
-          marginTop: 20,
-          display: "grid",
-          gridTemplateColumns: "1fr 360px",
-          gap: 18,
-        }}
-      >
+      <main className="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px]">
         {/* Left: List */}
-        <section style={{ minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              marginBottom: 12,
-              flexWrap: "wrap",
-            }}
-          >
+        <section className="min-w-0">
+          <div className="flex gap-2 flex-wrap mb-3">
             <input
               aria-label="Recherche"
               placeholder="Rechercher par nom, adresse, description..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              style={{
-                flex: 1,
-                padding: 8,
-                borderRadius: 8,
-                border: "1px solid #e6e9ef",
-              }}
+              className="flex-1 p-2 rounded-lg border border-[#e6e9ef]"
             />
+
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
               style={{ padding: 8, borderRadius: 8 }}
             >
               <option value="All">Tous types</option>
-              <option value="Route">Route</option>
-              <option value="Eau">Eau</option>
-              <option value="Eclairage">Eclairage</option>
-              <option value="Batiment">Bâtiment</option>
+              <option value="Multisports/City-stades">
+                MultiSports/City-stades
+              </option>
+              <option value="Boucle de randonnée">Boucle de randonnée</option>
+              <option value="Salle de musculation/cardiotraining">
+                Salle de musculation/cardiotraining
+              </option>
+              <option value="Salle multisports (gymnase)">Gymnase</option>
+              <option value="Bassin mixte de natation">Natation</option>
+              <option value="Carrière">Carrière</option>
+              <option value="Terrain de pétanque">Terrain de pétanque</option>
+              <option value="Terrain de football">Terrain de football</option>
+              <option value="Terrain de basket-ball">
+                Terrain de basket-ball
+              </option>
+              <option value="Dojo / Salle d'arts martiaux">
+                Dojo / Salle d'arts martiaux
+              </option>
               <option value="Autre">Autre</option>
             </select>
             <select
@@ -261,144 +298,56 @@ export default function DashboardPage(): JSX.Element {
             </select>
           </div>
 
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 10,
-              boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
-              padding: 12,
-            }}
-          >
+          <div className="bg-white rounded-[10px] p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             {loading ? (
               <p>Chargement...</p>
             ) : error ? (
-              <p style={{ color: "crimson" }}>{error}</p>
+              <p className="text-[crimson]">{error}</p>
             ) : filtered.length === 0 ? (
               <p>Aucune infrastructure trouvée.</p>
             ) : (
-              <ul
-                style={{
-                  listStyle: "none",
-                  margin: 0,
-                  padding: 0,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
+              <ul className="list-none m-0 p-0 grid gap-[10px]">
                 {pageItems.map((it) => (
-                  <li
+                  <AccordeonInfra
                     key={it.id}
-                    style={{
-                      border: "1px solid #eef2ff",
-                      borderRadius: 8,
-                      padding: 12,
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div style={{ width: 10 }}>
-                      <div
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          background:
-                            it.status === "Ouvert"
-                              ? "#10b981"
-                              : it.status === "Fermé"
-                              ? "#f59e0b"
-                              : "#64748b",
-                        }}
-                      />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 8,
-                        }}
-                      >
-                        <div style={{ minWidth: 0 }}>
-                          <strong
-                            style={{
-                              display: "block",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {it.name}
-                          </strong>
-                          <div style={{ fontSize: 13, color: "#475569" }}>
-                            {it.type} • {it.address}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ marginBottom: 6 }}>
-                            <Badge
-                              variant={
-                                it.status === "Ouvert"
-                                  ? "success"
-                                  : it.status === "Fermé"
-                                  ? "warn"
-                                  : "neutral"
-                              }
-                            >
-                              {it.status}
-                            </Badge>
-                          </div>
-                          <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                            {formatDate(it.createdAt)}
-                          </div>
-                        </div>
-                      </div>
-                      {it.description ? (
-                        <p style={{ margin: "8px 0 0", color: "#334155" }}>
-                          {it.description}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
+                    infra={it}
+                    setEditingInfra={setEditingInfra}
+                    isOpen={selectedInfraId === it.id}
+                    onToggle={() =>
+                      setSelectedInfraId((prev) =>
+                        prev === it.id ? null : it.id
+                      )
+                    }
+                    onSelect={(center) => setSelectedCenter(center)}
+                  />
                 ))}
               </ul>
             )}
 
             {/* Pagination */}
             {filtered.length > perPage && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 12,
-                }}
-              >
-                <div style={{ color: "#64748b" }}>
+              <div className="flex justify-between items-center mt-3">
+                <div className="text-slate-500">
                   {filtered.length} résultat(s)
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+
+                <div className="flex gap-2">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    style={{ padding: "6px 10px", borderRadius: 6 }}
+                    className="px-2.5 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed border border-transparent hover:bg-slate-100"
                   >
                     Préc
                   </button>
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      background: "#f8fafc",
-                      borderRadius: 6,
-                    }}
-                  >
+
+                  <div className="px-2.5 py-1.5 bg-slate-50 rounded-md text-slate-700">
                     {page} / {totalPages}
                   </div>
+
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    style={{ padding: "6px 10px", borderRadius: 6 }}
+                    className="px-2.5 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed border border-transparent hover:bg-slate-100"
                   >
                     Suiv
                   </button>
@@ -456,29 +405,23 @@ export default function DashboardPage(): JSX.Element {
               </div>
             </div>
           </div>
-
-          <div style={{ background: "#fff", borderRadius: 10, padding: 12 }}>
-            <h4 style={{ margin: "0 0 8px" }}>Carte</h4>
-            <div
-              aria-hidden
-              style={{
-                height: 300,
-                background: "linear-gradient(180deg,#e6eefc,#f8fafc)",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#475569",
-                fontSize: 14,
-                textAlign: "center",
-              }}
-            >
-              Placeholder carte — intégrez Leaflet/Mapbox/Google Maps ici pour
-              voir les infrastructures géolocalisées
-            </div>
-          </div>
+          <Carte infrastructures={items} selectedCenter={selectedCenter} />{" "}
         </aside>
       </main>
+
+      {editingInfra && (
+        <InfraEdit
+          infra={editingInfra}
+          onClose={() => setEditingInfra(null)}
+          // onSave={handleSave}
+        />
+      )}
+      {showAddModal && (
+        <InfraAddModal
+          onClose={() => setShowAddModal(false)}
+          onSave={handleAddInfra}
+        />
+      )}
 
       {/* Modal Form */}
       {showForm && (
@@ -526,7 +469,7 @@ function FormCreate({
   const [name, setName] = useState("");
   const [type, setType] = useState<InfrastructureType>("Autre");
   const [address, setAddress] = useState("");
-  const [status, setStatus] = useState<Infrastructure["status"]>("Plein");
+  const [status, setStatus] = useState<Infrastructure["status"]>("Ouvert");
   const [lat, setLat] = useState<string>("");
   const [lng, setLng] = useState<string>("");
   const [desc, setDesc] = useState("");
