@@ -36,6 +36,8 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
     const [jaugeData, setJaugeData] = React.useState<{ jauge: number | null; max_jauge: number | null } | null>(null)
     const toast = useToast()
     const dismissToast = useToastDismiss()
+    const [imageSrc, setImageSrc] = React.useState<string | null>(null)
+    const [imageLoading, setImageLoading] = React.useState<boolean>(false)
     
     // compute destination coordinates for external links (prefer detailed data)
     const destLat = detail?.lat ?? infra?.lat
@@ -86,6 +88,37 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
         }
     }, [infra?.id])
 
+    // load image for infra (from API that returns image_base64)
+    React.useEffect(() => {
+        let mounted = true
+        async function loadImage() {
+            if (!infra?.id) {
+                setImageSrc(null)
+                setImageLoading(false)
+                return
+            }
+            setImageLoading(true)
+            try {
+                const res = await fetch(`/api/infra/image?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' })
+                if (!res.ok) {
+                    setImageSrc(null)
+                    return
+                }
+                const data = await res.json().catch(() => null)
+                if (!mounted) return
+                const b64 = data?.image_base64 ?? data?.image ?? null
+                if (b64) setImageSrc(`data:image/png;base64,${b64}`)
+                else setImageSrc(null)
+            } catch (e) {
+                setImageSrc(null)
+            } finally {
+                if (mounted) setImageLoading(false)
+            }
+        }
+        loadImage()
+        return () => { mounted = false }
+    }, [infra?.id, detail?.lat, detail?.lon])
+
     // sync favorites state from localStorage when infra changes
     React.useEffect(() => {
         try {
@@ -127,7 +160,18 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
 
     return (
         <div className="space-y-3">
-            <img src="https://placehold.co/600x400" alt={infra.name} className="w-full h-auto shadow-md" />
+            {imageLoading ? (
+                <div className="w-full h-64 flex items-center justify-center bg-gray-100 shadow-md">
+                    <svg className="animate-spin h-8 w-8 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                </div>
+            ) : imageSrc ? (
+                <img src={imageSrc} alt={infra.name} className="w-full h-auto shadow-md" />
+            ) : (
+                <img src="https://placehold.co/600x400" alt={infra.name} className="w-full h-auto shadow-md" />
+            )}
             
             <div className='flex flex-row flex-nowrap justify-center'>
                 <motion.a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`} target="_blank" rel="noopener noreferrer" className='flex flex-col justify-center items-center px-2 cursor-pointer' whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.1 }}>
