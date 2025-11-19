@@ -38,6 +38,7 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
     const dismissToast = useToastDismiss()
     const [imageSrc, setImageSrc] = React.useState<string | null>(null)
     const [imageLoading, setImageLoading] = React.useState<boolean>(false)
+    const imageRequestIdRef = React.useRef(0)
     
     // compute destination coordinates for external links (prefer detailed data)
     const destLat = detail?.lat ?? infra?.lat
@@ -92,27 +93,36 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
     React.useEffect(() => {
         let mounted = true
         async function loadImage() {
+            const requestId = ++imageRequestIdRef.current
             if (!infra?.id) {
-                setImageSrc(null)
-                setImageLoading(false)
+                // only clear if this is the latest request
+                if (imageRequestIdRef.current === requestId) {
+                    setImageSrc(null)
+                    setImageLoading(false)
+                }
                 return
             }
-            setImageLoading(true)
+            // mark loading for this request
+            if (imageRequestIdRef.current === requestId) setImageLoading(true)
             try {
                 const res = await fetch(`/api/infra/image?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' })
                 if (!res.ok) {
-                    setImageSrc(null)
+                    if (imageRequestIdRef.current === requestId) setImageSrc(null)
                     return
                 }
                 const data = await res.json().catch(() => null)
                 if (!mounted) return
                 const b64 = data?.image_base64 ?? data?.image ?? null
-                if (b64) setImageSrc(`data:image/png;base64,${b64}`)
-                else setImageSrc(null)
+                const mime = data?.mime ?? 'image/png'
+                if (b64) {
+                    if (imageRequestIdRef.current === requestId) setImageSrc(`data:${mime};base64,${b64}`)
+                } else {
+                    if (imageRequestIdRef.current === requestId) setImageSrc(null)
+                }
             } catch (e) {
-                setImageSrc(null)
+                if (imageRequestIdRef.current === requestId) setImageSrc(null)
             } finally {
-                if (mounted) setImageLoading(false)
+                if (mounted && imageRequestIdRef.current === requestId) setImageLoading(false)
             }
         }
         loadImage()
