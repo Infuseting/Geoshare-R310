@@ -8,10 +8,26 @@ import React from "react";
 type Props = {
   infra: Infrastructure;
   onClose: () => void;
-  //onSave: (updated: Infrastructure) => void;
+  onSave: (updated: Infrastructure) => void;
 };
 
-export default function InfraEditModal({ infra, onClose }: Props) {
+async function updateInfrastructure(data: Partial<Infrastructure>) {
+  const response = await fetch("/api/infra/modify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error?.error || "Erreur lors de la modification");
+  }
+  return await response.json(); // renvoie l'infrastructure modifiée
+}
+
+export default function InfraEditModal({ infra, onSave, onClose }: Props) {
   const [piecesOptions, setPiecesOptions] = useState<string[]>([]);
   const [equipOptions, setEquipOptions] = useState<string[]>([]);
   const [accessOptions, setAccessOptions] = useState<string[]>([]);
@@ -67,13 +83,22 @@ export default function InfraEditModal({ infra, onClose }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    //onSave(form);
+
+    const newInfra: Infrastructure = {
+      ...form,
+      piece: selectedPieces.join(", "),
+      accessibility: selectedAccess.join(", "),
+    };
+
+    console.log("Données modifiées :", newInfra);
+    updateInfrastructure(newInfra);
+    onSave(newInfra);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/30 z-[9999] flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative overflow-auto max-h-[90vh]">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-slate-500 hover:text-slate-700"

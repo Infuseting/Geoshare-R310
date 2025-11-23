@@ -116,7 +116,7 @@ export default function InfraAddModal({ onClose, onSave }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/30 z-[9999] flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative overflow-auto max-h-[90vh]">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-slate-500 hover:text-slate-700"

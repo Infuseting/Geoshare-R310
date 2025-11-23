@@ -107,7 +107,15 @@ export default function DashboardPage(): JSX.Element {
   };
 
   const handleSave = (updated: Infrastructure) => {
-    alert(`Infrastructure mise à jour : `);
+    console.log("updated.id:", updated.id);
+    console.log(
+      "items ids:",
+      items.map((i) => i.id)
+    );
+    setItems((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item))
+    );
+    setPage(1);
   };
   const [selectedCenter, setSelectedCenter] = useState<[number, number] | null>(
     null
@@ -413,7 +421,7 @@ export default function DashboardPage(): JSX.Element {
         <InfraEdit
           infra={editingInfra}
           onClose={() => setEditingInfra(null)}
-          // onSave={handleSave}
+          onSave={handleSave}
         />
       )}
       {showAddModal && (
