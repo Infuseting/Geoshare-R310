@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 export default function Home() {
@@ -10,8 +10,26 @@ export default function Home() {
   
   // État pour gérer la catégorie sélectionnée
   const [selectedCategory, setSelectedCategory] = useState<
-    "particulier" | "association" | "entreprise"
+    "particulier" | "association" | "collectivite"
   >("particulier");
+
+  // État pour vérifier si l'utilisateur est connecté
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Vérifier si l'utilisateur est connecté au chargement
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+        });
+        setIsLoggedIn(res.ok);
+      } catch (error) {
+        setIsLoggedIn(false);
+      }
+    };
+    checkAuth();
+  }, []);
   
   // useScroll track la progression du scroll sur l'élément référencé
   // scrollYProgress retourne une valeur entre 0 et 1
@@ -50,52 +68,51 @@ export default function Home() {
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         ),
-        title: "Consultez les disponibilités",
-        description: "Vérifiez les horaires, les tarifs et réservez directement vos créneaux d'activité sportive."
+        title: "Sauvegardez vos favoris",
+        description: "Mettez en signet vos infrastructures favorites et consultez votre historique de recherche pour un accès rapide."
       }
     ],
     association: [
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         ),
-        title: "Inscrivez votre association",
-        description: "Créez un compte pour votre association et accédez à la plateforme de recensement."
+        title: "Créez votre compte",
+        description: "Inscrivez votre association gratuitement pour accéder à la plateforme et ses fonctionnalités avancées."
       },
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         ),
-        title: "Recensez vos infrastructures",
-        description: "Ajoutez vos équipements sportifs sur la carte : gymnases, terrains, piscines, stades et plus encore."
+        title: "Recherche avancée d'infrastructures",
+        description: "Utilisez les filtres avancés pour trouver les équipements sportifs adaptés aux besoins spécifiques de votre association."
       },
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         ),
-        title: "Partagez et collaborez",
-        description: "Partagez vos équipements avec d'autres associations et gérez les réservations en temps réel."
+        title: "Gérez vos favoris",
+        description: "Sauvegardez vos infrastructures préférées et consultez les disponibilités pour planifier vos activités associatives."
       }
     ],
-    entreprise: [
+    collectivite: [
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         ),
-        title: "Enregistrez votre entreprise",
-        description: "Créez un profil professionnel pour votre entreprise et gérez vos installations sportives."
+        title: "Enregistrez votre collectivité",
+        description: "Créez un profil pour votre collectivité et gérez toutes les installations sportives de votre territoire."
       },
       {
         icon: (
@@ -109,11 +126,11 @@ export default function Home() {
       {
         icon: (
           <svg className="w-8 h-8 text-[#D2232A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         ),
-        title: "Analysez vos performances",
-        description: "Accédez aux statistiques d'utilisation et optimisez la gestion de vos équipements sportifs."
+        title: "Indiquez les détails",
+        description: "Renseignez le statut (ouvert/fermé), l'accessibilité, le type d'équipement et les types de pièces disponibles pour chaque infrastructure."
       }
     ]
   };
@@ -135,7 +152,6 @@ export default function Home() {
               <nav className="hidden lg:flex gap-8">
                 <a href="#" className="text-sm font-medium text-gray-700 hover:text-[#D2232A] transition-colors">Accueil</a>
                 <a href="#fonctionnalites" className="text-sm font-medium text-gray-700 hover:text-[#D2232A] transition-colors">Fonctionnalités</a>
-                <a href="#" className="text-sm font-medium text-gray-700 hover:text-[#D2232A] transition-colors">Carte</a>
                 <a href="#advantages" className="text-sm font-medium text-gray-700 hover:text-[#D2232A] transition-colors">Avantages</a>
               </nav>
 
@@ -167,26 +183,35 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="pt-28 min-h-screen bg-gradient-to-b from-red-50 via-white to-gray-50">
+      <main className="min-h-screen bg-gradient-to-b from-red-50 via-white to-gray-50">
         {/* Banner Section */}
-        <div className="container max-w-6xl mx-auto px-4 text-center py-20">
-          <h1 className="text-5xl md:text-6xl font-bold text-[#D2232A] mb-6">
-            Recensez et gérez les infrastructures sportives de Normandie
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Plateforme collaborative pour les associations et entreprises permettant de recenser, gérer et partager les infrastructures sportives de la région.
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Link href="/register">
-              <button className="rounded-full px-8 py-3 text-base font-semibold bg-[#D2232A] hover:bg-[#B01E24] text-white shadow-lg hover:shadow-xl transition-all">
-                Commencer maintenant
-              </button>
-            </Link>
-            <Link href="/map">
-              <button className="rounded-full px-8 py-3 text-base font-medium text-gray-700 border-2 border-gray-300 hover:border-[#D2232A] hover:text-[#D2232A] transition-all">
-                Voir la carte
-              </button>
-            </Link>
+        <div 
+          className="relative w-full text-center py-32 pt-40 overflow-hidden"
+          style={{
+            backgroundImage: "url('/bg-map.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+          {/* Overlay pour assombrir l'image de fond */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs"></div>
+          
+          {/* Contenu */}
+          <div className="relative z-10 container max-w-6xl mx-auto px-4">
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
+              Recensez et gérez les infrastructures sportives de Normandie
+            </h1>
+            <p className="text-xl text-white/90 max-w-3xl mx-auto mb-8 drop-shadow-md">
+              Plateforme collaborative pour les associations et entreprises permettant de recenser, gérer et partager les infrastructures sportives de la région.
+            </p>
+            <div className="flex justify-center">
+              <Link href={isLoggedIn ? "/map" : "/login"}>
+                <button className="rounded-full px-8 py-3 text-base font-semibold bg-[#D2232A] hover:bg-[#B01E24] text-white shadow-2xl hover:shadow-xl transition-all transform hover:scale-105">
+                  Commencer maintenant
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -263,14 +288,14 @@ export default function Home() {
                   Association
                 </button>
                 <button
-                  onClick={() => setSelectedCategory("entreprise")}
+                  onClick={() => setSelectedCategory("collectivite")}
                   className={`px-6 py-3 rounded-full font-medium transition-all ${
-                    selectedCategory === "entreprise"
+                    selectedCategory === "collectivite"
                       ? "bg-[#D2232A] text-white shadow-lg"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  Entreprise
+                  Collectivité
                 </button>
               </div>
             </div>
@@ -350,13 +375,13 @@ export default function Home() {
                     <svg className="w-6 h-6 text-[#D2232A] mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Partagez vos équipements avec d'autres associations</span>
+                    <span>Effectué une recherche avancé pour trouvez l'infrastructure idéale</span>
                   </li>
                   <li className="flex items-start">
                     <svg className="w-6 h-6 text-[#D2232A] mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Gérez les réservations et disponibilités en temps réel</span>
+                    <span>Consultez les horaires et disponibilités en temps réel</span>
                   </li>
                 </ul>
               </div>
@@ -374,7 +399,7 @@ export default function Home() {
                     <svg className="w-6 h-6 text-[#D2232A] mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Suivez l'utilisation et optimisez vos équipements</span>
+                    <span>Suivez l'utilisation et adapter votre calendrier</span>
                   </li>
                   <li className="flex items-start">
                     <svg className="w-6 h-6 text-[#D2232A] mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

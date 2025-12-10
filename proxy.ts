@@ -98,6 +98,8 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // protect everything except api, _next, static assets and auth pages
-  matcher: ["/((?!api|_next|static|favicon.ico|login|register).*)"],
+  // protect everything except api, _next, public and static assets and auth pages
+  matcher: [
+    '/((?!api|_next|static|.*\\..*|login|register).*)',
+  ],
 }
