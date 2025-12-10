@@ -7,12 +7,32 @@ export async function GET(request: Request) {
     const id = url.searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 })
 
-    // fetch weekly opening days
-    const weeklyRows = await query(`SELECT oj.jour FROM Ouverture_Jour oj JOIN Infra_Ouverture io ON io.id = oj.id_ouverture WHERE io.idInfrastructure = ?`, [id])
+    // Get the FIRST Infra_Ouverture id for this infrastructure
+    const ouvertureRows = await query(
+      `SELECT id FROM Infra_Ouverture WHERE idInfrastructure = ? LIMIT 1`,
+      [id]
+    )
+
+    if (!ouvertureRows || ouvertureRows.length === 0) {
+      // No opening schedule exists yet, return empty data
+      return NextResponse.json({ weekly: [], exceptions: [] })
+    }
+
+    const id_ouverture = (ouvertureRows[0] as any).id
+
+    // Fetch weekly opening days for THIS id_ouverture only
+    const weeklyRows = await query(
+      `SELECT jour FROM Ouverture_Jour WHERE id_ouverture = ?`,
+      [id_ouverture]
+    )
+    console.log('[/api/infra/availability] weeklyRows for id_ouverture', id_ouverture, ':', weeklyRows)
     const weekly = (weeklyRows || []).map((r: any) => (r.jour))
 
-    // fetch exceptions (closures / special openings)
-    const excRows = await query(`SELECT oe.date_debut as date_debut, oe.date_fin as date_fin, oe.type as type FROM Ouverture_Exception oe JOIN Infra_Ouverture io ON io.id = oe.id_ouverture WHERE io.idInfrastructure = ?`, [id])
+    // Fetch exceptions for THIS id_ouverture only
+    const excRows = await query(
+      `SELECT date_debut, date_fin, type FROM Ouverture_Exception WHERE id_ouverture = ?`,
+      [id_ouverture]
+    )
     const exceptions = (excRows || []).map((r: any) => ({ date_debut: r.date_debut, date_fin: r.date_fin, type: r.type }))
 
     return NextResponse.json({ weekly, exceptions })
