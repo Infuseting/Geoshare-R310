@@ -6,6 +6,7 @@ import AccordeonInfra from "../../components/accordeonInfra";
 import InfraEdit from "../../components/ui/infraEdit";
 import InfraAddModal from "@/components/ui/infraAddModal";
 import UserMenu from "@/components/ui/user-menu";
+import AlertManager from "@/components/ui/alert-manager";
 
 const Carte = dynamic(() => import("../../components/ui/dashboarCarte"), {
   ssr: false,
@@ -98,13 +99,14 @@ export const Badge: React.FC<{
 
 /* Dashboard Page */
 export default function DashboardPage(): JSX.Element {
+  const [tab, setTab] = useState<'infra' | 'alerts'>('infra');
   const [editingInfra, setEditingInfra] = useState<Infrastructure | null>(null);
   const [infrastructures, setInfrastructures] = useState<Infrastructure[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
   const handleAddInfra = (newInfra: Infrastructure) => {
-    setItems((prev) => [newInfra, ...prev]); // ou [...prev, newInfra] selon l’ordre souhaité
-    setPage(1); // pour revenir à la première page et voir l’ajout
+    setItems((prev) => [newInfra, ...prev]); 
+    setPage(1); 
   };
 
   const handleSave = (updated: Infrastructure) => {
@@ -269,7 +271,7 @@ export default function DashboardPage(): JSX.Element {
 
   return (
     <div className="p-5 font-sans max-w-[1100px] mx-auto">
-      <header className="flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-3 mb-5">
         <div className=" flex  self-start md:self-center gap-2">
           {" "}
           <button
@@ -285,24 +287,53 @@ export default function DashboardPage(): JSX.Element {
         </div>
         <div>
           <h2 className="m-0 text-xl font-semibold">
-            Tableau de bord des infrastructures
+             Tableau de bord
           </h2>
           <p className="mt-1.5 text-slate-600">
-            Voir, filtrer et ajouter des infrastructures de la collectivité
+             Gérez vos infrastructures et vos alertes
           </p>
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-gray-300 bg-gray-100 text-sm text-gray-800 font-semibold hover:bg-gray-200 "
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter une infrastructure
-          </button>
+           {tab === 'infra' && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-gray-300 bg-gray-100 text-sm text-gray-800 font-semibold hover:bg-gray-200 "
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter une infrastructure
+              </button>
+           )}
         </div>
       </header>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b mb-6">
+        <button
+            onClick={() => setTab('infra')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                tab === 'infra' 
+                ? 'bg-white border-l border-t border-r text-blue-600' 
+                : 'bg-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+        >
+            Infrastructures
+        </button>
+        <button
+            onClick={() => setTab('alerts')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                tab === 'alerts' 
+                ? 'bg-white border-l border-t border-r text-blue-600' 
+                : 'bg-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+        >
+            Alertes
+        </button>
+      </div>
+
+      {tab === 'alerts' ? (
+          <AlertManager />
+      ) : (
       <main className="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px]">
         {/* Left: List */}
         <section className="min-w-0">
@@ -468,6 +499,7 @@ export default function DashboardPage(): JSX.Element {
           />{" "}
         </aside>
       </main>
+      )}
 
       {editingInfra && (
         <InfraEdit
