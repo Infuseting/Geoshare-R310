@@ -64,20 +64,27 @@ export async function POST(request: Request) {
     }
 
     if (pieces.length > 0) {
-      // match by piece name via has_Piece + Piece
-      where.push(`EXISTS (SELECT 1 FROM has_Piece hp JOIN Piece p ON hp.idPiece = p.idPiece WHERE hp.idInfrastructure = Infrastructure.idInfrastructure AND p.Name IN (${pieces.map(() => '?').join(',')}))`)
-      whereParams.push(...pieces)
+      // AND logic: infrastructure must have ALL selected pieces
+      for (const piece of pieces) {
+        where.push(`EXISTS (SELECT 1 FROM has_Piece hp JOIN Piece p ON hp.idPiece = p.idPiece WHERE hp.idInfrastructure = Infrastructure.idInfrastructure AND p.Name = ?)`)
+        whereParams.push(piece)
+      }
     }
 
     if (equipments.length > 0) {
-      // has_Equipements table uses column name `idInfrastrcture` (typo in DB schema)
-      where.push(`EXISTS (SELECT 1 FROM has_Equipements he JOIN Equipements e ON he.idEquipements = e.idEquipements WHERE he.idInfrastrcture = Infrastructure.idInfrastructure AND e.typeEquipements IN (${equipments.map(() => '?').join(',')}))`)
-      whereParams.push(...equipments)
+      // AND logic: infrastructure must have ALL selected equipments
+      for (const equip of equipments) {
+        where.push(`EXISTS (SELECT 1 FROM has_Equipements he JOIN Equipements e ON he.idEquipements = e.idEquipements WHERE he.idInfrastrcture = Infrastructure.idInfrastructure AND e.typeEquipements = ?)`)
+        whereParams.push(equip)
+      }
     }
 
     if (accessibilites.length > 0) {
-      where.push(`EXISTS (SELECT 1 FROM is_accessible ia JOIN Accessibilite a ON ia.idAccessibilite = a.idAccessibilite WHERE ia.idInfrastructure = Infrastructure.idInfrastructure AND a.name IN (${accessibilites.map(() => '?').join(',')}))`)
-      whereParams.push(...accessibilites)
+      // AND logic: must have ALL selected accessibilities
+      for (const access of accessibilites) {
+        where.push(`EXISTS (SELECT 1 FROM is_accessible ia JOIN Accessibilite a ON ia.idAccessibilite = a.idAccessibilite WHERE ia.idInfrastructure = Infrastructure.idInfrastructure AND a.name = ?)`)
+        whereParams.push(access)
+      }
     }
     if (jaugeMin != null || jaugeMax != null) {
       // ensure infrastructures have a max_jauge within the requested range

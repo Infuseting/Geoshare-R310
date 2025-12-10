@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { Infrastructure } from "../../app/dashboard/page";
 
-import MultiComboBox from "./multi-combobox";
+import MultiComboBox, { Option } from "./multi-combobox";
 import React from "react";
 import { se } from "date-fns/locale";
 
@@ -29,9 +29,9 @@ async function createInfrastructure(data: Partial<Infrastructure>) {
 }
 
 export default function InfraAddModal({ onClose, onSave }: Props) {
-  const [piecesOptions, setPiecesOptions] = useState<string[]>([]);
-  const [equipOptions, setEquipOptions] = useState<string[]>([]);
-  const [accessOptions, setAccessOptions] = useState<string[]>([]);
+  const [piecesOptions, setPiecesOptions] = useState<Option[]>([]);
+  const [equipOptions, setEquipOptions] = useState<Option[]>([]);
+  const [accessOptions, setAccessOptions] = useState<Option[]>([]);
 
   const [form, setForm] = useState<Infrastructure>({} as Infrastructure);
 
@@ -45,12 +45,12 @@ export default function InfraAddModal({ onClose, onSave }: Props) {
       .then((r) => r.json())
       .then((data) => {
         if (!mounted) return;
-        setPiecesOptions(Array.isArray(data.pieces) ? data.pieces : []);
+        setPiecesOptions(Array.isArray(data.pieces) ? data.pieces.map((s: string) => ({ value: s, label: s })) : []);
         setEquipOptions(
-          Array.isArray(data.equipements) ? data.equipements : []
+          Array.isArray(data.equipements) ? data.equipements.map((s: string) => ({ value: s, label: s })) : []
         );
         setAccessOptions(
-          Array.isArray(data.accessibilites) ? data.accessibilites : []
+          Array.isArray(data.accessibilites) ? data.accessibilites.map((s: string) => ({ value: s, label: s })) : []
         );
       })
       .catch((e) => console.error("failed to load filters", e));
@@ -172,7 +172,8 @@ export default function InfraAddModal({ onClose, onSave }: Props) {
               options={accessOptions}
               selected={selectedAccess}
               onChange={(value) => {
-                const cleaned = value.filter((v) => v.trim() !== "");
+                const strVals = value.map(String);
+                const cleaned = strVals.filter((v) => v.trim() !== "");
                 setSelectedAccess(cleaned);
                 handleChange("accessibility", cleaned);
               }}
@@ -189,7 +190,8 @@ export default function InfraAddModal({ onClose, onSave }: Props) {
               options={piecesOptions}
               selected={selectedPieces}
               onChange={(value) => {
-                const cleaned = value.filter((v) => v.trim() !== "");
+                const strVals = value.map(String);
+                const cleaned = strVals.filter((v) => v.trim() !== "");
                 setSelectedPieces(cleaned);
                 handleChange("piece", cleaned);
               }}
@@ -206,7 +208,8 @@ export default function InfraAddModal({ onClose, onSave }: Props) {
               options={equipOptions}
               selected={selectedEquips}
               onChange={(value) => {
-                const cleaned = value.filter((v) => v.trim() !== "");
+                const strVals = value.map(String);
+                const cleaned = strVals.filter((v) => v.trim() !== "");
                 setSelectedEquips(cleaned);
                 handleChange("type", cleaned);
               }}

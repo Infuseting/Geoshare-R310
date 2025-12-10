@@ -1,9 +1,9 @@
 "use client"
 
 import React from "react"
-import { Search, Calendar as CalendarIcon } from "lucide-react"
+import { Search, Calendar as CalendarIcon, Loader2 } from "lucide-react"
 import { format } from "date-fns"
-import MultiComboBox from "./multi-combobox"
+import MultiComboBox, { Option } from "./multi-combobox"
 import { Range } from 'react-range'
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -37,9 +37,9 @@ export default function FilterSearchPanel() {
         }
     }, [])
 
-        const [piecesOptions, setPiecesOptions] = React.useState<string[]>([])
-        const [equipOptions, setEquipOptions] = React.useState<string[]>([])
-        const [accessOptions, setAccessOptions] = React.useState<string[]>([])
+        const [piecesOptions, setPiecesOptions] = React.useState<Option[]>([])
+        const [equipOptions, setEquipOptions] = React.useState<Option[]>([])
+        const [accessOptions, setAccessOptions] = React.useState<Option[]>([])
         const [searchQ, setSearchQ] = React.useState<string>('')
 
         const [selectedPieces, setSelectedPieces] = React.useState<string[]>([])
@@ -53,6 +53,7 @@ export default function FilterSearchPanel() {
         const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined)
         const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined)
         const [isSearching, setIsSearching] = React.useState<boolean>(false)
+        const isSearchingRef = React.useRef(false)
         const [userType, setUserType] = React.useState<string | null>(null)
 
         React.useEffect(() => {
@@ -70,9 +71,9 @@ export default function FilterSearchPanel() {
                     .then((r) => r.json())
                     .then((data) => {
                         if (!mounted) return
-                        setPiecesOptions(Array.isArray(data.pieces) ? data.pieces : [])
-                        setEquipOptions(Array.isArray(data.equipements) ? data.equipements : [])
-                        setAccessOptions(Array.isArray(data.accessibilites) ? data.accessibilites : [])
+                        setPiecesOptions(Array.isArray(data.pieces) ? data.pieces.map((s: string) => ({ value: s, label: s })) : [])
+                        setEquipOptions(Array.isArray(data.equipements) ? data.equipements.map((s: string) => ({ value: s, label: s })) : [])
+                        setAccessOptions(Array.isArray(data.accessibilites) ? data.accessibilites.map((s: string) => ({ value: s, label: s })) : [])
                         // set jauge bounds
                         const maxJ = Number.isFinite(Number(data.jaugeMax)) ? Number(data.jaugeMax) : 0
                         setAvailableJaugeMax(maxJ)
@@ -104,54 +105,59 @@ export default function FilterSearchPanel() {
 
         // perform the search using current filters
         async function performFilterSearch(opts?: any) {
-            const payload = opts ?? {
-                q: searchQ,
-                pieces: selectedPieces,
-                equipments: selectedEquips,
-                accessibilites: selectedAccess,
-                distanceKm,
-                jaugeMin,
-                jaugeMax,
-                dateFrom: dateFrom ? dateFrom.toISOString() : null,
-                dateTo: dateTo ? dateTo.toISOString() : null,
-                limit: 100
-            }
+            if (isSearchingRef.current) return
+            
+            isSearchingRef.current = true
+            setIsSearching(true)
 
-            // if center not provided, try to get user location
-            let centerLat: number | null = payload.centerLat ?? null
-            let centerLon: number | null = payload.centerLon ?? null
-            if ((centerLat == null || centerLon == null)) {
-                try {
-                    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        const id = navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
-                    })
-                    centerLat = pos.coords.latitude
-                    centerLon = pos.coords.longitude
-                } catch (e) {
-                    // ignore geolocation failure; proceed without center
-                    centerLat = null
-                    centerLon = null
+            try {
+                const payload = opts ?? {
+                    q: searchQ,
+                    pieces: selectedPieces,
+                    equipments: selectedEquips,
+                    accessibilites: selectedAccess,
+                    distanceKm,
+                    jaugeMin,
+                    jaugeMax,
+                    dateFrom: dateFrom ? dateFrom.toISOString() : null,
+                    dateTo: dateTo ? dateTo.toISOString() : null,
+                    limit: 100
                 }
-            }
+
+                // if center not provided, try to get user location
+                let centerLat: number | null = payload.centerLat ?? null
+                let centerLon: number | null = payload.centerLon ?? null
+                if ((centerLat == null || centerLon == null)) {
+                    try {
+                        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+                            const id = navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
+                        })
+                        centerLat = pos.coords.latitude
+                        centerLon = pos.coords.longitude
+                    } catch (e) {
+                        // ignore geolocation failure; proceed without center
+                        centerLat = null
+                        centerLon = null
+                    }
+                }
 
                 const body: any = {
-                q: payload.q || '',
-                pieces: Array.isArray(payload.pieces) ? payload.pieces : [],
-                equipments: Array.isArray(payload.equipments) ? payload.equipments : [],
-                accessibilites: Array.isArray(payload.accessibilites) ? payload.accessibilites : [],
-                distanceKm: Number(payload.distanceKm) || 0,
+                    q: payload.q || '',
+                    pieces: Array.isArray(payload.pieces) ? payload.pieces : [],
+                    equipments: Array.isArray(payload.equipments) ? payload.equipments : [],
+                    accessibilites: Array.isArray(payload.accessibilites) ? payload.accessibilites : [],
+                    distanceKm: Number(payload.distanceKm) || 0,
                     jaugeMin: Number.isFinite(Number(payload.jaugeMin)) ? Number(payload.jaugeMin) : null,
                     jaugeMax: Number.isFinite(Number(payload.jaugeMax)) ? Number(payload.jaugeMax) : null,
-                centerLat: centerLat,
-                centerLon: centerLon,
-                dateFrom: payload.dateFrom || null,
-                dateTo: payload.dateTo || null,
-                limit: payload.limit || 100
-            }
+                    centerLat: centerLat,
+                    centerLon: centerLon,
+                    dateFrom: payload.dateFrom || null,
+                    dateTo: payload.dateTo || null,
+                    limit: payload.limit || 100
+                }
 
-            // send to API with loading state
-            setIsSearching(true)
-            try {
+                // send to API
+
                 const res = await fetch('/api/search', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
                 if (!res.ok) throw new Error('search failed')
                 const items = await res.json()
@@ -199,6 +205,7 @@ export default function FilterSearchPanel() {
                 console.error('filter search error', e)
             } finally {
                 setIsSearching(false)
+                isSearchingRef.current = false
             }
         }
 
@@ -234,10 +241,11 @@ export default function FilterSearchPanel() {
                             <div className="flex flex-row w-full border rounded p-2 items-center bg-white">
                                 <input
                                     aria-label="Recherche"
-                                    className="flex-1 outline-none text-sm text-gray-700 bg-transparent"
+                                    className="flex-1 outline-none text-sm text-gray-700 bg-transparent disabled:opacity-50"
                                     placeholder="Rechercher dans GeoShare"
                                     value={searchQ}
                                     onChange={(e) => setSearchQ(e.target.value)}
+                                    disabled={isSearching}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             e.preventDefault()
@@ -245,7 +253,7 @@ export default function FilterSearchPanel() {
                                         }
                                     }}
                                 />
-                                <Search className="w-5 h-5 text-gray-500 ml-2"/>
+                                {isSearching ? <Loader2 className="w-5 h-5 text-gray-500 ml-2 animate-spin"/> : <Search className="w-5 h-5 text-gray-500 ml-2"/>}
                             </div>
                             <div className="flex flex-col gap-2">
 
@@ -258,7 +266,8 @@ export default function FilterSearchPanel() {
                                         step={0.5}
                                         value={distanceKm}
                                         onChange={(e) => setDistanceKm(Number(e.target.value))}
-                                        className="flex-1"
+                                        disabled={isSearching}
+                                        className="flex-1 disabled:opacity-50"
                                     />
                                     <input
                                         type="number"
@@ -270,8 +279,9 @@ export default function FilterSearchPanel() {
                                             const clamped = Math.max(0.5, Math.min(50, v))
                                             setDistanceKm(Number(clamped.toFixed(1)))
                                         }}
+                                        disabled={isSearching}
                                         step={0.1}
-                                        className="w-20 p-1 border rounded text-sm"
+                                        className="w-20 p-1 border rounded text-sm disabled:bg-gray-100"
                                     />
                                 </div>
                             </div>
@@ -285,6 +295,7 @@ export default function FilterSearchPanel() {
                                                     step={1}
                                                     min={0}
                                                     max={availableJaugeMax}
+                                                    disabled={isSearching}
                                                     onChange={(vals: number[]) => {
                                                         const v0 = Math.max(0, Math.min(Number(availableJaugeMax), vals[0]))
                                                         const v1 = Math.max(0, Math.min(Number(availableJaugeMax), vals[1]))
@@ -299,7 +310,7 @@ export default function FilterSearchPanel() {
                                                             <div
                                                                 key={key}
                                                                 {...rest}
-                                                                className="w-full h-2 bg-gray-200 rounded-md relative"
+                                                                className={`w-full h-2 bg-gray-200 rounded-md relative ${isSearching ? 'opacity-50' : ''}`}
                                                                 style={{ display: 'flex', alignItems: 'center' }}
                                                             >
                                                                 <div className="absolute h-2 bg-indigo-500 rounded-md" style={{ left: `${(jaugeRange[0] / (availableJaugeMax || 1)) * 100}%`, right: `${100 - (jaugeRange[1] / (availableJaugeMax || 1)) * 100}%` }} />
@@ -338,7 +349,8 @@ export default function FilterSearchPanel() {
                                                     setJaugeMin(nv)
                                                     setJaugeRange([nv, newMax])
                                                 }}
-                                                className="w-24 p-1 border rounded text-sm"
+                                                disabled={isSearching}
+                                                className="w-24 p-1 border rounded text-sm disabled:bg-gray-100"
                                             />
                                             <input
                                                 type="number"
@@ -352,7 +364,8 @@ export default function FilterSearchPanel() {
                                                     setJaugeMax(nv)
                                                     setJaugeRange([newMin, nv])
                                                 }}
-                                                className="w-24 p-1 border rounded text-sm"
+                                                disabled={isSearching}
+                                                className="w-24 p-1 border rounded text-sm disabled:bg-gray-100"
                                             />
                                             <div className="text-xs text-gray-500 self-center">Max proposé: {availableJaugeMax}</div>
                                         </div>
@@ -360,7 +373,14 @@ export default function FilterSearchPanel() {
                                 </div>
                             <div>
                                 <label className="text-xs text-gray-600 mb-1 block">Types d'équipements</label>
-                                <MultiComboBox options={equipOptions} selected={selectedEquips} onChange={setSelectedEquips} placeholder="Sélectionner types d'équipements" />
+                                <div className={isSearching ? "opacity-50 pointer-events-none" : ""}>
+                                    <MultiComboBox 
+                                        options={equipOptions} 
+                                        selected={selectedEquips} 
+                                        onChange={(vals) => setSelectedEquips(vals.map(String))} 
+                                        placeholder="Sélectionner types d'équipements" 
+                                    />
+                                </div>
                             </div>
                             {userType === 'PARTICULIER' ? (
                                 null
@@ -368,11 +388,25 @@ export default function FilterSearchPanel() {
                                 <>
                                     <div>
                                         <label className="text-xs text-gray-600 mb-1 block">Types de pièces</label>
-                                        <MultiComboBox options={piecesOptions} selected={selectedPieces} onChange={setSelectedPieces} placeholder="Sélectionner types de pièces" />
+                                        <div className={isSearching ? "opacity-50 pointer-events-none" : ""}>
+                                            <MultiComboBox 
+                                                options={piecesOptions} 
+                                                selected={selectedPieces} 
+                                                onChange={(vals) => setSelectedPieces(vals.map(String))} 
+                                                placeholder="Sélectionner types de pièces" 
+                                            />
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="text-xs text-gray-600 mb-1 block">Accessibilités</label>
-                                        <MultiComboBox options={accessOptions} selected={selectedAccess} onChange={setSelectedAccess} placeholder="Sélectionner accessibilités" />
+                                        <div className={isSearching ? "opacity-50 pointer-events-none" : ""}>
+                                            <MultiComboBox 
+                                                options={accessOptions} 
+                                                selected={selectedAccess} 
+                                                onChange={(vals) => setSelectedAccess(vals.map(String))} 
+                                                placeholder="Sélectionner accessibilités" 
+                                            />
+                                        </div>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <label className="text-xs text-gray-600">Dates</label>
@@ -380,7 +414,7 @@ export default function FilterSearchPanel() {
                                     <div className="flex gap-2">
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-start text-left">
+                                                <Button variant="outline" className="w-full justify-start text-left" disabled={isSearching}>
                                                     <CalendarIcon className="mr-2" />
                                                     {dateFrom ? format(dateFrom, 'PPP') : <span className="text-gray-500">Date de début</span>}
                                                 </Button>
@@ -396,10 +430,7 @@ export default function FilterSearchPanel() {
                                 <Button onClick={() => performFilterSearch()} className="w-full" disabled={isSearching} aria-busy={isSearching}>
                                     {isSearching ? (
                                         <span className="flex items-center justify-center gap-2">
-                                            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                            </svg>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
                                             <span>Recherche...</span>
                                         </span>
                                     ) : 'Rechercher'}

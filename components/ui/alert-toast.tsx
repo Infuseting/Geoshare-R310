@@ -14,12 +14,13 @@ export interface AlertData {
   source_type?: string
 }
 
-interface AlertToastProps {
+export interface AlertToastProps {
   alert: AlertData | null
   onDismiss?: () => void
+  onClick?: () => void
 }
 
-export default function AlertToast({ alert, onDismiss }: AlertToastProps) {
+export default function AlertToast({ alert, onDismiss, onClick }: AlertToastProps) {
   if (!alert) return null
 
   const borderColor = {
@@ -46,17 +47,25 @@ export default function AlertToast({ alert, onDismiss }: AlertToastProps) {
         initial={{ y: 100, opacity: 0, x: '-50%' }}
         animate={{ y: 0, opacity: 1, x: '-50%' }}
         exit={{ y: 100, opacity: 0, x: '-50%' }}
-        className={`fixed bottom-8 left-1/2 z-[50000] w-full max-w-md px-4`}
+        className={`fixed bottom-8 left-1/2 z-[50000] w-full max-w-md px-4 cursor-pointer`}
+        onClick={onClick}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
       >
         <div className={`bg-white border-4 ${borderColor} rounded-xl shadow-2xl p-4 flex items-start gap-4 relative`}>
+            {/* Removed internal dismiss button based on user request "il faut pas que ça s'enleve" */
+            /* If reinstatement is needed, uncomment below */
+            /* 
             {onDismiss && (
                 <button 
-                    onClick={onDismiss}
+                    onClick={(e) => { e.stopPropagation(); onDismiss() }}
                     className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
                 >
                     <X size={18} />
                 </button>
             )}
+            */
+            }
             
             <div className={`mt-1 ${iconColor}`}>
                 <AlertTriangle size={32} strokeWidth={2.5} />
