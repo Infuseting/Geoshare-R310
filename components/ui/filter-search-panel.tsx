@@ -11,7 +11,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { useLeftPanel } from "./left-panel-context"
 import InfraViewer from "./infra-viewer"
 
-export default function FilterSearchPanel() {
+export default function FilterSearchPanel({ initialFilters }: { initialFilters?: any }) {
     React.useEffect(() => {
         try { window.dispatchEvent(new CustomEvent('geoshare:filter:open')) } catch (e) {}
         return () => {
@@ -40,18 +40,22 @@ export default function FilterSearchPanel() {
         const [piecesOptions, setPiecesOptions] = React.useState<Option[]>([])
         const [equipOptions, setEquipOptions] = React.useState<Option[]>([])
         const [accessOptions, setAccessOptions] = React.useState<Option[]>([])
-        const [searchQ, setSearchQ] = React.useState<string>('')
-
-        const [selectedPieces, setSelectedPieces] = React.useState<string[]>([])
-        const [selectedEquips, setSelectedEquips] = React.useState<string[]>([])
-        const [selectedAccess, setSelectedAccess] = React.useState<string[]>([])
-        const [distanceKm, setDistanceKm] = React.useState<number>(0)
-        const [jaugeMin, setJaugeMin] = React.useState<number>(0)
-        const [jaugeMax, setJaugeMax] = React.useState<number>(0)
+        
+        // initialize state from props
+        const [searchQ, setSearchQ] = React.useState<string>(initialFilters?.q || '')
+        const [selectedPieces, setSelectedPieces] = React.useState<string[]>(Array.isArray(initialFilters?.pieces) ? initialFilters.pieces : [])
+        const [selectedEquips, setSelectedEquips] = React.useState<string[]>(Array.isArray(initialFilters?.equipments) ? initialFilters.equipments : [])
+        const [selectedAccess, setSelectedAccess] = React.useState<string[]>(Array.isArray(initialFilters?.accessibilites) ? initialFilters.accessibilites : [])
+        const [distanceKm, setDistanceKm] = React.useState<number>(Number(initialFilters?.distanceKm) || 0)
+        
+        const [jaugeMin, setJaugeMin] = React.useState<number>(Number(initialFilters?.jaugeMin) || 0)
+        const [jaugeMax, setJaugeMax] = React.useState<number>(Number(initialFilters?.jaugeMax) || 0)
+        
         const [availableJaugeMax, setAvailableJaugeMax] = React.useState<number>(0)
         const [jaugeRange, setJaugeRange] = React.useState<[number, number]>([0, 0])
-        const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined)
-        const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined)
+        const [dateFrom, setDateFrom] = React.useState<Date | undefined>(initialFilters?.dateFrom ? new Date(initialFilters.dateFrom) : undefined)
+        const [dateTo, setDateTo] = React.useState<Date | undefined>(initialFilters?.dateTo ? new Date(initialFilters.dateTo) : undefined)
+        
         const [isSearching, setIsSearching] = React.useState<boolean>(false)
         const isSearchingRef = React.useRef(false)
         const [userType, setUserType] = React.useState<string | null>(null)
@@ -77,9 +81,20 @@ export default function FilterSearchPanel() {
                         // set jauge bounds
                         const maxJ = Number.isFinite(Number(data.jaugeMax)) ? Number(data.jaugeMax) : 0
                         setAvailableJaugeMax(maxJ)
-                        setJaugeMax(maxJ)
-                        setJaugeMin(0)
-                        setJaugeRange([0, maxJ])
+                        
+                        // if jaugeMax was saved, keep it, otherwise use availableMax. BUT if no saved filter, use availableMax
+                        if (!initialFilters) {
+                            setJaugeMax(maxJ)
+                            setJaugeMin(0)
+                            setJaugeRange([0, maxJ])
+                        } else {
+                            // ensure valid range with available max
+                            // actually saved max might be old, but we should respect user intent
+                            // let's just update valid range for slider
+                            const savedMin = Number(initialFilters.jaugeMin) || 0
+                            const savedMax = Number(initialFilters.jaugeMax) || maxJ
+                            setJaugeRange([savedMin, savedMax])
+                        }
                     })
                     .catch((e) => console.error('failed to load filters', e))
                 return () => { mounted = false }
@@ -157,7 +172,6 @@ export default function FilterSearchPanel() {
                 }
 
                 // send to API
-
                 const res = await fetch('/api/search', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
                 if (!res.ok) throw new Error('search failed')
                 const items = await res.json()
@@ -200,7 +214,7 @@ export default function FilterSearchPanel() {
                     const next = [entry, ...arr.filter((i: any) => JSON.stringify(i.filters || {}) !== JSON.stringify(entry.filters || {}))].slice(0, 50)
                     localStorage.setItem(key, JSON.stringify(next))
                 } catch (e) {}
-
+            
             } catch (e) {
                 console.error('filter search error', e)
             } finally {
@@ -208,6 +222,13 @@ export default function FilterSearchPanel() {
                 isSearchingRef.current = false
             }
         }
+
+        // trigger initial search if filters provided
+        React.useEffect(() => {
+            if (initialFilters) {
+                performFilterSearch(initialFilters)
+            }
+        }, [])
 
         // listen for re-execution requests
         React.useEffect(() => {

@@ -32,52 +32,39 @@ export default function RecentSearches({vertical, maxItems } : {vertical?: boole
     <div className="w-full px-2 py-auto h-full">
       {visible.map((s: any, idx: number) => (
         <div key={idx} className={` items-center flex ${vertical ? 'flex-col justify-center' : 'flex-row'} ${vertical ? '' : 'hover:bg-gray-100 rounded-md cursor-pointer'}`}  onClick={() => {
-              try {
-                const ANIM_MS = 500
-
-                // If this recent search includes filters (saved from filter search),
-                // open the filter panel and then dispatch an event that will re-execute the filtered search.
+                let filters: any = {}
+                
+                // If the saved item includes filters
                 if (s && (s.filters || s.filter)) {
-                  try {
-                    if (openPanel) openPanel({ name: 'Recherche par filtres', title: 'Recherche par filtres', html: <FilterSearchPanel /> })
-                  } catch (e) {}
-                  window.setTimeout(() => {
-                    try { window.dispatchEvent(new CustomEvent('geoshare:executeFilterSearch', { detail: s })) } catch (e) {}
-                  }, ANIM_MS)
-                  return
-                }
-
-                // If the saved item contains coordinates (lat/lon) but no filters,
-                // open the filter panel and re-run the filter search by creating a minimal filters object using the stored coords.
-                if (s && (s.lat != null || s.lon != null)) {
-                  try {
-                    if (openPanel) openPanel({ name: 'Recherche par filtres', title: 'Recherche par filtres', html: <FilterSearchPanel /> })
-                  } catch (e) {}
-                  const detail = {
-                    filters: {
-                      q: s.title || '',
-                      pieces: [],
-                      equipments: [],
-                      accessibilites: [],
-                      distanceKm: 0,
-                      centerLat: s.lat != null ? Number(s.lat) : null,
-                      centerLon: s.lon != null ? Number(s.lon) : null,
-                      dateFrom: null,
-                      dateTo: null,
-                      limit: 100
+                    filters = s.filters || s.filter
+                } 
+                // If it's a simple location search
+                else if (s && (s.lat != null || s.lon != null)) {
+                    filters = {
+                        q: s.title || '',
+                        pieces: [],
+                        equipments: [],
+                        accessibilites: [],
+                        distanceKm: 0,
+                        centerLat: s.lat != null ? Number(s.lat) : null,
+                        centerLon: s.lon != null ? Number(s.lon) : null,
+                        dateFrom: null,
+                        dateTo: null,
+                        limit: 100
                     }
-                  }
-                  window.setTimeout(() => {
-                    try { window.dispatchEvent(new CustomEvent('geoshare:executeFilterSearch', { detail })) } catch (e) {}
-                  }, ANIM_MS)
-                  return
+                } else {
+                     // Simple text search fallback (though usually handled by default)
+                     window.dispatchEvent(new CustomEvent('geoshare:searchQuery', { detail: { q: s.title } }))
+                     return
                 }
 
-                // otherwise emit a simple searchQuery event with the title
-                window.dispatchEvent(new CustomEvent('geoshare:searchQuery', { detail: { q: s.title } }))
-              } catch (e) {
-                console.warn('failed to dispatch recent search event', e)
-              }
+                try {
+                    if (openPanel) openPanel({ 
+                        name: 'Recherche par filtres', 
+                        title: 'Recherche par filtres', 
+                        html: <FilterSearchPanel initialFilters={filters} /> 
+                    })
+                } catch (e) {}
             }}>
           <button
             title={s.title}
