@@ -117,7 +117,7 @@ CREATE TABLE `Ouverture_Exception` (
   `id_ouverture` int DEFAULT NULL,
   `date_debut` datetime DEFAULT NULL,
   `date_fin` datetime DEFAULT NULL,
-  `type` enum('Ouverture','Fermeture''') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+  `type` enum('Ouverture','Fermeture') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `Ouverture_Jour` (

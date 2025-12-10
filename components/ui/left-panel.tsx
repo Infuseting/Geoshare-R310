@@ -22,7 +22,7 @@ export default function LeftPanel({name, children}: {name?: string, children?: R
       <button
         aria-expanded={open}
         aria-controls="left-panel"
-        onClick={() => (open ? closePanel() : null)}
+        onClick={() => { if (open) { window.dispatchEvent(new CustomEvent('geoshare:leftPanel:userClose')); closePanel(); } }}
         className="fixed left-2 top-4 z-9999 bg-white border rounded-full p-2 shadow-sm hover:bg-gray-50"
       >
         <span className="sr-only">Toggle left panel</span>
@@ -37,7 +37,7 @@ export default function LeftPanel({name, children}: {name?: string, children?: R
       >
         <div className="flex items-center justify-between mb-4 px-4 pt-4">
           <h3 className="font-semibold">{title ?? name ?? 'Panneau'}</h3>
-          <button onClick={() => closePanel()} className="text-sm text-gray-500">☰</button>
+          <button onClick={() => { window.dispatchEvent(new CustomEvent('geoshare:leftPanel:userClose')); closePanel(); }} className="text-sm text-gray-500">☰</button>
         </div>
         <div>
 

@@ -86,8 +86,16 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
     const s = document.createElement('style')
     s.id = 'geoshare-selected-marker-style'
     s.innerHTML = `
-@keyframes geoshare-bounce { 0% { transform: translateY(0); } 50% { transform: translateY(-12px); } 100% { transform: translateY(0); } }
-.geoshare-selected-marker { animation: geoshare-bounce 1s infinite; display: block; transform-origin: center bottom; }
+@keyframes geoshare-bounce { 
+  0%, 100% { transform: translateY(0); } 
+  50% { transform: translateY(-20px); } 
+}
+.geoshare-selected-marker { 
+  animation: geoshare-bounce 1s ease-in-out infinite; 
+  display: block; 
+  transform-origin: center bottom; 
+  will-change: transform;
+}
 .geoshare-selected-divicon { background: transparent; }
 `
     document.head.appendChild(s)
@@ -383,7 +391,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
           openPanel({
             name: `Infrastructure #${params.infra}`,
             title: `Infrastructure #${params.infra}`,
-            html: <InfraViewer infra={{ id: params.infra }} />,
+            html: <InfraViewer key={`infra-${params.infra}`} infra={{ id: params.infra }} />,
           })
           // mark as selected so the marker is animated
           try { setSelectedInfraId(String(params.infra)) } catch (e) {}
@@ -489,15 +497,16 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
     })()
   }, [mapInstance])
 
-  // When the left-panel is closed elsewhere, clear the infra param from the URL
+  // When the user explicitly closes the panel (clicks X button), clear selection
   React.useEffect(() => {
-    function onLeftPanelClose() {
+    function onUserClose() {
       try { updateUrl({ infra: null }) } catch (e) {}
       try { setSelectedInfraId(null) } catch (e) {}
       try { setSelectedInfra(null) } catch (e) {}
     }
-    window.addEventListener('geoshare:leftPanel:close', onLeftPanelClose)
-    return () => window.removeEventListener('geoshare:leftPanel:close', onLeftPanelClose)
+    
+    window.addEventListener('geoshare:leftPanel:userClose', onUserClose)
+    return () => window.removeEventListener('geoshare:leftPanel:userClose', onUserClose)
   }, [])
 
   return (
@@ -596,7 +605,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
                         openPanel({
                           name: it.name ?? `Infrastructure #${it.id}`,
                           title: it.name ?? `Infrastructure #${it.id}`,
-                          html: <InfraViewer infra={it} />,
+                          html: <InfraViewer key={`infra-${it.id}`} infra={it} />,
                         })
                       } catch (e) {
                         console.warn("failed to open left panel for infra", e)
@@ -627,7 +636,7 @@ export default function LeafletMap({ center = [51.505, -0.09], zoom = 13, minZoo
                       openPanel({
                         name: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
                         title: selectedInfra.name ?? `Infrastructure #${selectedInfra.id}`,
-                        html: <InfraViewer infra={selectedInfra} />,
+                        html: <InfraViewer key={`infra-${selectedInfra.id}`} infra={selectedInfra} />,
                       })
                     } catch (e) {}
                   },

@@ -12,9 +12,9 @@ export async function GET(request: Request) {
 
   try {
     // search name or adresse (case-insensitive)
-  const like = `%${q}%`
-  // LIMIT cannot be parameterized in some DB drivers, ensure 'limit' is an integer we control
-  const rows = await query(`SELECT idInfrastructure as id, name, adresse, latitude, longitude FROM Infrastructure WHERE name LIKE ? OR adresse LIKE ? LIMIT ${limit}`, [like, like])
+    const like = `%${q}%`
+    // LIMIT cannot be parameterized in some DB drivers, ensure 'limit' is an integer we control
+    const rows = await query(`SELECT idInfrastructure as id, name, adresse, latitude, longitude FROM Infrastructure WHERE name LIKE ? OR adresse LIKE ? LIMIT ${limit}`, [like, like])
 
     // normalize coordinates
     const items = rows.map((r: any) => ({
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     // once, then join it to Infrastructure to avoid evaluating the recursive logic per-row.
     let sql = ''
     if (useDateAvailability) {
-      const cte = `WITH RECURSIVE calendar AS ( SELECT ? AS date_jour UNION ALL SELECT DATE_ADD(date_jour, INTERVAL 1 DAY) FROM calendar WHERE date_jour < ? ), avail AS ( SELECT DISTINCT io.idInfrastructure FROM calendar c JOIN Ouverture_Jour oj ON oj.jour = ELT(WEEKDAY(c.date_jour)+1, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche') JOIN Infra_Ouverture io ON io.id = oj.id_ouverture WHERE NOT EXISTS (SELECT 1 FROM Ouverture_Exception oe JOIN Infra_Ouverture io2 ON io2.id = oe.id_ouverture WHERE io2.idInfrastructure = io.idInfrastructure AND c.date_jour BETWEEN oe.date_debut AND oe.date_fin AND oe.type = 'FERMETURE') UNION SELECT DISTINCT io2.idInfrastructure FROM calendar c JOIN Ouverture_Exception oe JOIN Infra_Ouverture io2 ON io2.id = oe.id_ouverture WHERE oe.type = 'OUVERTURE_SPECIALE' AND c.date_jour BETWEEN oe.date_debut AND oe.date_fin )`
+      const cte = `WITH RECURSIVE calendar AS ( SELECT ? AS date_jour UNION ALL SELECT DATE_ADD(date_jour, INTERVAL 1 DAY) FROM calendar WHERE date_jour < ? ), avail AS ( SELECT DISTINCT io.idInfrastructure FROM calendar c JOIN Ouverture_Jour oj ON oj.jour = ELT(WEEKDAY(c.date_jour)+1, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche') JOIN Infra_Ouverture io ON io.id = oj.id_ouverture WHERE NOT EXISTS (SELECT 1 FROM Ouverture_Exception oe JOIN Infra_Ouverture io2 ON io2.id = oe.id_ouverture WHERE io2.idInfrastructure = io.idInfrastructure AND c.date_jour BETWEEN oe.date_debut AND oe.date_fin AND oe.type = 'Fermeture') UNION SELECT DISTINCT io2.idInfrastructure FROM calendar c JOIN Ouverture_Exception oe JOIN Infra_Ouverture io2 ON io2.id = oe.id_ouverture WHERE oe.type = 'Ouverture' AND c.date_jour BETWEEN oe.date_debut AND oe.date_fin )`
       sql = `${cte} ${select} FROM Infrastructure JOIN avail a ON a.idInfrastructure = Infrastructure.idInfrastructure ${whereClause} ${having} ${limitClause}`
     } else {
       sql = `${select} FROM Infrastructure ${whereClause} ${having} ${limitClause}`

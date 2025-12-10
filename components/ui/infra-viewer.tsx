@@ -40,6 +40,14 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
     const [imageLoading, setImageLoading] = React.useState<boolean>(false)
     const imageRequestIdRef = React.useRef(0)
     
+    // Loading states for each API call
+    const [detailLoading, setDetailLoading] = React.useState<boolean>(true)
+    const [availabilityLoading, setAvailabilityLoading] = React.useState<boolean>(true)
+    const [jaugeLoading, setJaugeLoading] = React.useState<boolean>(true)
+    
+    // Global loading state - true if any API is still loading
+    const isLoading = detailLoading || availabilityLoading || jaugeLoading || imageLoading
+    
     // compute destination coordinates for external links (prefer detailed data)
     const destLat = detail?.lat ?? infra?.lat
     const destLon = detail?.lon ?? infra?.lon
@@ -48,39 +56,68 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
     React.useEffect(() => {
         let mounted = true
         async function load() {
-            if (!infra || !infra.id) return
+            if (!infra || !infra.id) {
+                setDetailLoading(false)
+                setAvailabilityLoading(false)
+                setJaugeLoading(false)
+                return
+            }
+            
+            // Reset loading states when infra changes
+            setDetailLoading(true)
+            setAvailabilityLoading(true)
+            setJaugeLoading(true)
+            
             try {
                 const res = await fetch(`/api/infra/id?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' })
                 if (res.status === 403) {
                     setDetail(null)
+                    setDetailLoading(false)
+                    setAvailabilityLoading(false)
+                    setJaugeLoading(false)
                     return
                 }
                 if (!res.ok) {
                     const j = await res.json().catch(() => ({}))
                     setDetail(null)
+                    setDetailLoading(false)
+                    setAvailabilityLoading(false)
+                    setJaugeLoading(false)
                     return
                 }
                 const j = await res.json()
                 if (!mounted) return
                 setDetail(j as InfraDetail)
+                setDetailLoading(false)
+                
                 // fetch availability info (weekly openings + exceptions)
                 try {
                     const av = await fetch(`/api/infra/availability?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' }).then(r => r.json()).catch(() => null)
-                    if (mounted && av && !av.error) setAvailability(av)
-                    // fetch jauge (current / max)
-                    try {
-                        const j = await fetch(`/api/infra/jauge?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' }).then(r => r.json()).catch(() => null)
-                        if (mounted && j && !j.error) setJaugeData({ jauge: j.jauge ?? null, max_jauge: j.max_jauge ?? null })
-                    } catch (e) {
-                        // ignore
+                    if (mounted && av && !av.error) {
+                        console.log('Availability data received:', av)
+                        setAvailability(av)
                     }
                 } catch (e) {
                     // ignore availability errors
+                } finally {
+                    if (mounted) setAvailabilityLoading(false)
+                }
+                
+                // fetch jauge (current / max)
+                try {
+                    const j = await fetch(`/api/infra/jauge?id=${encodeURIComponent(infra.id)}`, { credentials: 'same-origin' }).then(r => r.json()).catch(() => null)
+                    if (mounted && j && !j.error) setJaugeData({ jauge: j.jauge ?? null, max_jauge: j.max_jauge ?? null })
+                } catch (e) {
+                    // ignore
+                } finally {
+                    if (mounted) setJaugeLoading(false)
                 }
             } catch (e: any) {
                 if (!mounted) return
                 setDetail(null)
-            } finally {
+                setDetailLoading(false)
+                setAvailabilityLoading(false)
+                setJaugeLoading(false)
             }
         }
         load()
@@ -168,16 +205,21 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
 
     if (!infra) return <div>Aucune infrastructure sélectionnée</div>
 
+    // Show loading state while any API call is in progress
+    if (isLoading) {
+        return (
+            <div className="w-full h-96 flex items-center justify-center">
+                <svg className="animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-3">
-            {imageLoading ? (
-                <div className="w-full h-64 flex items-center justify-center bg-gray-100 shadow-md">
-                    <svg className="animate-spin h-8 w-8 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                    </svg>
-                </div>
-            ) : imageSrc ? (
+            {imageSrc ? (
                 <img src={imageSrc} alt={infra.name} className="w-full h-auto shadow-md" />
             ) : (
                 <img src="https://placehold.co/600x400" alt={infra.name} className="w-full h-auto shadow-md" />
@@ -289,8 +331,8 @@ export default function InfraViewer({ infra }: { infra?: InfraSummary }) {
                                                 if (availability) {
                                                     // if special opening exists for today -> open
                                                     const ymd = today.toISOString().slice(0,10)
-                                                    const hasSpecial = availability.exceptions?.some((ex: any) => ex.type === 'OUVERTURE_SPECIALE' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
-                                                    const hasFermeture = availability.exceptions?.some((ex: any) => ex.type === 'FERMETURE' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
+                                                    const hasSpecial = availability.exceptions?.some((ex: any) => ex.type === 'Ouverture' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
+                                                    const hasFermeture = availability.exceptions?.some((ex: any) => ex.type === 'Fermeture' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
                                                     if (hasSpecial) open = true
                                                     else if (hasFermeture) open = false
                                                     else open = availability.weekly?.includes(weekday)
@@ -400,8 +442,21 @@ function CalendarView({ availability }: { availability: { weekly: string[]; exce
         try {
             const ymd = d.toISOString().slice(0,10)
             const weekday = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][d.getDay() === 0 ? 6 : d.getDay() - 1]
-            const hasSpecialOpen = availability.exceptions.some(ex => ex.type === 'OUVERTURE_SPECIALE' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
-            const hasFermeture = availability.exceptions.some(ex => ex.type === 'FERMETURE' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || ''))
+            
+            // Safety check for exceptions array
+            const exceptions = availability.exceptions || []
+            
+            const hasSpecialOpen = exceptions.some(ex => {
+                const match = ex.type === 'Ouverture' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || '')
+                if (match) console.log('Special opening found for', ymd, ex)
+                return match
+            })
+            const hasFermeture = exceptions.some(ex => {
+                const match = ex.type === 'Fermeture' && ymd >= (ex.date_debut?.slice(0,10) || '') && ymd <= (ex.date_fin?.slice(0,10) || '')
+                if (match) console.log('Closure found for', ymd, ex)
+                return match
+            })
+            
             if (hasSpecialOpen) return true
             if (hasFermeture) return false
             return availability.weekly.includes(weekday)
