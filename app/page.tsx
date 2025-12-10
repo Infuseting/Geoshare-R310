@@ -200,7 +200,7 @@ export default function Home() {
           {/* Contenu */}
           <div className="relative z-10 container max-w-6xl mx-auto px-4">
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
-              Recensez et gérez les infrastructures sportives de Normandie
+              Recensez et gérez les infrastructures sportives
             </h1>
             <p className="text-xl text-white/90 max-w-3xl mx-auto mb-8 drop-shadow-md">
               Plateforme collaborative pour les associations et entreprises permettant de recenser, gérer et partager les infrastructures sportives de la région.
