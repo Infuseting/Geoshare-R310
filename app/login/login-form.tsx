@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,6 @@ export function LoginForm() {
 	const [password, setPassword] = useState("")
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState("")
-	const router = useRouter()
 	const searchParams = useSearchParams()
 	const redirectTo = searchParams.get("redirect") || "/map"
 
@@ -35,7 +34,10 @@ export function LoginForm() {
 				setError(data?.error || "Échec de la connexion")
 				return
 			}
-			router.push(redirectTo)
+			// Use window.location.href for reliable redirect with cookie sync
+			window.location.href = redirectTo
+		} catch (err) {
+			setError("Une erreur est survenue lors de la connexion")
 		} finally {
 			setLoading(false)
 		}
