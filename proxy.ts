@@ -10,32 +10,11 @@ export async function proxy(req: NextRequest) {
 
   const tokenFromCookie = req.cookies.get("access_token")?.value
 
+  // Allow access to home page for both authenticated and unauthenticated users
   if (pathname === "/") {
-    if (!tokenFromCookie) {
-      return NextResponse.next()
-    }
-
-    try {
-      const origin = req.nextUrl.origin
-      const res = await fetch(`${origin}/api/auth/verify`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          Authorization: `Bearer ${tokenFromCookie}`,
-        },
-      })
-
-      if (res.ok) {
-        const url = req.nextUrl.clone()
-        url.pathname = "/map"
-        return NextResponse.redirect(url)
-      }
-    } catch (e) {
-      // fallthrough to allow viewing `/` if verification fails
-    }
-
     return NextResponse.next()
   }
+
 
   // Skip public and API routes, and the login/register pages
   if (
@@ -53,6 +32,7 @@ export async function proxy(req: NextRequest) {
   if (!token) {
     const url = req.nextUrl.clone()
     url.pathname = "/login"
+    url.searchParams.set("redirect", pathname)
     return NextResponse.redirect(url)
   }
 
@@ -94,6 +74,7 @@ export async function proxy(req: NextRequest) {
 
   const url = req.nextUrl.clone()
   url.pathname = "/login"
+  url.searchParams.set("redirect", pathname)
   return NextResponse.redirect(url)
 }
 

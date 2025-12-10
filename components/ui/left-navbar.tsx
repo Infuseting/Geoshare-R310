@@ -16,6 +16,11 @@ import SignetsViewer from "./signets-viewer";
 import FilterSearchPanel from "./filter-search-panel";
 import UserMenu from "./user-menu";
 
+// Logo component to use as icon
+const LogoIcon = ({ className }: { className?: string }) => (
+  <img src="/logo.webp" alt="Logo" className={className} />
+);
+
 export default function LeftNavbar() {
   const { togglePanel } = useLeftPanel();
   const router = useRouter();
@@ -39,7 +44,7 @@ export default function LeftNavbar() {
     }
   }, [])
   const items = [
-    { key: "menu", label: "Menu", icon: MenuIcon },
+    { key: "menu", label: "Menu", icon: LogoIcon },
     { key: "bookmarks", label: "Signets", icon: Bookmark },
     { key: "search", label: "Anciennes Recherches", icon: ScanSearch },
     { key: "filters", label: "Recherche par filtres", icon: SearchCheck },
@@ -89,6 +94,8 @@ export default function LeftNavbar() {
                         title: "Recherche par filtres",
                         html: <FilterSearchPanel />,
                       });
+                    } else if (it.key === 'menu') {
+                      router.push('/');
                     }
                     
                     else if (it.href) {

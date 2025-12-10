@@ -1,5 +1,5 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useMap } from "react-leaflet";
@@ -40,9 +40,11 @@ const infraIcon = L.icon({
 export default function Carte({
   infrastructures,
   selectedCenter,
+  onInfraClick,
 }: {
   infrastructures: Infrastructure[];
   selectedCenter: [number, number] | null;
+  onInfraClick?: (infraId: string) => void;
 }) {
   const defcenter: [number, number] = (() => {
     const first = infrastructures.find(
@@ -78,9 +80,12 @@ export default function Carte({
                 key={infra.id}
                 position={[infra.latitude!, infra.longitude!]}
                 icon={infraIcon}
-              >
-                <Popup>{infra.name}</Popup>
-              </Marker>
+                eventHandlers={{
+                  click: () => {
+                    onInfraClick?.(infra.id);
+                  },
+                }}
+              />
             ))}
         </MapContainer>
       </div>

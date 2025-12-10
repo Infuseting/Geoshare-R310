@@ -17,6 +17,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "geoshare",
   description: "App to see infrastructure and get informations about natural disease.",
+  icons: {
+    icon: [
+      { url: '/logo.webp', type: 'image/webp' },
+      { url: '/logo.webp', sizes: '32x32', type: 'image/webp' },
+      { url: '/logo.webp', sizes: '16x16', type: 'image/webp' },
+    ],
+    apple: '/logo.webp',
+  },
 };
 
 export default function RootLayout({

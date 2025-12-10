@@ -73,15 +73,27 @@ export default function UserMenu({ name }: { name?: string }) {
         } catch (e) {
           // ignore localStorage errors
         }
-        // Redirect to login page
-        router.push("/login")
+        // If on home page, reload to update auth state, otherwise redirect
+        if (window.location.pathname === "/") {
+          window.location.reload()
+        } else {
+          router.push("/")
+        }
         return
       }
-      // If not ok, still navigate to login to force unauthenticated state
-      router.push("/login")
+      // If not ok, still navigate to home to force unauthenticated state
+      if (window.location.pathname === "/") {
+        window.location.reload()
+      } else {
+        router.push("/")
+      }
     } catch (e) {
-      // On error, still try to navigate to login
-      router.push("/login")
+      // On error, still try to navigate to home
+      if (window.location.pathname === "/") {
+        window.location.reload()
+      } else {
+        router.push("/")
+      }
     } finally {
       setLoggingOut(false)
     }
@@ -129,13 +141,26 @@ export default function UserMenu({ name }: { name?: string }) {
 
       <DropdownMenuContent align="end" sideOffset={8} className="z-[100000]">
         <DropdownMenuItem asChild>
+          <Link href="/map" className="w-full cursor-pointer">
+            Voir la carte
+          </Link>
+        </DropdownMenuItem>
+        {(userType === 'ENTREPRISE' || userType === 'COLLECTIVITE') && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard" className="w-full cursor-pointer">
+              Dashboard
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
           <button
             onClick={handleLogout}
             className="w-full text-left"
             disabled={loggingOut}
             aria-disabled={loggingOut}
           >
-            {loggingOut ? "Logging out..." : "Logout"}
+            {loggingOut ? "Déconnexion..." : "Se déconnecter"}
           </button>
         </DropdownMenuItem>
         { userType === 'PARTICULIER' || userType === 'ASSOCIATION' ? (

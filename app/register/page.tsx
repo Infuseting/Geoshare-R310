@@ -15,11 +15,13 @@ export default function RegisterPage() {
 	const [confirmPassword, setConfirmPassword] = useState("")
 	const [userType, setUserType] = useState<"PARTICULIER"|"ENTREPRISE"|"ASSOCIATION">("PARTICULIER")
 	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState("")
 
 	async function onSubmit(e: React.FormEvent) {
 		e.preventDefault()
+		setError("")
 		if (password !== confirmPassword) {
-			alert("Passwords do not match")
+			setError("Les mots de passe ne correspondent pas")
 			return
 		}
 		setLoading(true)
@@ -33,7 +35,7 @@ export default function RegisterPage() {
 
 			const data = await res.json()
 			if (!res.ok) {
-				alert(data?.error ?? 'Registration failed')
+				setError(data?.error ?? 'Échec de l\'inscription')
 				return
 			}
 
@@ -48,10 +50,15 @@ export default function RegisterPage() {
 		<div className="min-h-screen flex items-center justify-center p-4">
 			<Card className="w-full max-w-md">
 				<CardHeader>
-					<CardTitle>Create account</CardTitle>
+					<CardTitle>Créer un compte</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={onSubmit} className="space-y-4">
+						{error && (
+							<div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
+								{error}
+							</div>
+						)}
 						<div>
 							<Label>Type de compte</Label>
 							<div className="flex gap-4 mt-1">
@@ -94,7 +101,7 @@ export default function RegisterPage() {
 						</div>
 
 							<div>
-								<Label htmlFor="name">Full name</Label>
+								<Label htmlFor="name">Nom complet</Label>
 							<Input
 								id="name"
 								value={name}
@@ -117,7 +124,7 @@ export default function RegisterPage() {
 						</div>
 
 						<div>
-							<Label htmlFor="password">Password</Label>
+							<Label htmlFor="password">Mot de passe</Label>
 							<Input
 								id="password"
 								type="password"
@@ -129,7 +136,7 @@ export default function RegisterPage() {
 						</div>
 
 						<div>
-							<Label htmlFor="confirmPassword">Confirm password</Label>
+							<Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
 							<Input
 								id="confirmPassword"
 								type="password"
@@ -142,10 +149,10 @@ export default function RegisterPage() {
 
 						<div className="flex items-center justify-between">
 							<Button type="submit" disabled={loading}>
-								{loading ? "Creating..." : "Create account"}
+								{loading ? "Création..." : "Créer un compte"}
 							</Button>
 							<Link href="/login" className="text-sm text-muted-foreground">
-								Already have an account?
+								Vous avez déjà un compte ?
 							</Link>
 						</div>
 					</form>

@@ -1,10 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import UserMenu from "@/components/ui/user-menu";
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // Check authentication status
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setIsAuthenticated(!!data?.name || !!data?.user);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (e) {
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkAuth();
+  }, []);
+
   // Référence pour cibler la section à animer
   const ref = useRef(null);
   
@@ -150,16 +177,24 @@ export default function Home() {
 
                 {/* Boutons desktop */}
                 <div className="hidden lg:flex gap-3">
-                  <Link href="/login">
-                    <button className="rounded-full px-5 py-2 text-sm font-medium text-gray-700 hover:text-[#D2232A] hover:bg-gray-100 transition-all">
-                      se connecter
-                    </button>
-                  </Link>
-                  <Link href="/register">
-                    <button className="rounded-full px-5 py-2 text-sm font-semibold bg-[#D2232A] hover:bg-[#B01E24] text-white shadow-md hover:shadow-lg transition-all">
-                      s'inscrire
-                    </button>
-                  </Link>
+                  {loading ? (
+                    <div className="px-5 py-2 text-sm text-gray-500">Chargement...</div>
+                  ) : isAuthenticated ? (
+                    <UserMenu />
+                  ) : (
+                    <>
+                      <Link href="/login">
+                        <button className="rounded-full px-5 py-2 text-sm font-medium text-gray-700 hover:text-[#D2232A] hover:bg-gray-100 transition-all">
+                          se connecter
+                        </button>
+                      </Link>
+                      <Link href="/register">
+                        <button className="rounded-full px-5 py-2 text-sm font-semibold bg-[#D2232A] hover:bg-[#B01E24] text-white shadow-md hover:shadow-lg transition-all">
+                          s'inscrire
+                        </button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

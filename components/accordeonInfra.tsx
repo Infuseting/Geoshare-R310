@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../app/dashboard/page"; // adapte selon ton projet
 import { formatDate } from "../app/dashboard/page"; // adapte selon ton projet
+import ConfirmModal from "./ui/confirm-modal";
 
 import type { Infrastructure } from "../app/dashboard/page"; // adapte selon ton projet
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
   isOpen?: boolean;
   onToggle?: () => void;
   setEditingInfra: (infra: Infrastructure) => void;
+  onDelete?: (id: string) => void;
 };
 
 export default function AccordeonInfra({
@@ -18,7 +20,10 @@ export default function AccordeonInfra({
   isOpen,
   onToggle,
   setEditingInfra,
+  onDelete,
 }: Props) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const handleClick = () => {
     if (
       typeof infra.latitude === "number" &&
@@ -31,6 +36,7 @@ export default function AccordeonInfra({
 
   return (
     <li
+      id={`infra-${infra.id}`}
       className="cursor-pointer border border-[#eef2ff] rounded-lg p-3 hover:bg-slate-50 transition"
       onClick={handleClick}
     >
@@ -104,17 +110,39 @@ export default function AccordeonInfra({
               {infra.type || "Aucune information"}
             </p>
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingInfra(infra);
-            }}
-            className="text-sm text-[#e30613] hover:underline"
-          >
-            Modifier
-          </button>
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingInfra(infra);
+              }}
+              className="text-sm text-orange-500 hover:underline"
+            >
+              Modifier
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteModal(true);
+              }}
+              className="text-sm text-red-600 hover:underline font-semibold"
+            >
+              Supprimer
+            </button>
+          </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={() => onDelete?.(infra.id)}
+        title="Confirmer la suppression"
+        message={`Êtes-vous sûr de vouloir supprimer "${infra.name}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="danger"
+      />
     </li>
   );
 }

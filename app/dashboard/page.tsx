@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import AccordeonInfra from "../../components/accordeonInfra";
 import InfraEdit from "../../components/ui/infraEdit";
 import InfraAddModal from "@/components/ui/infraAddModal";
+import UserMenu from "@/components/ui/user-menu";
 
 const Carte = dynamic(() => import("../../components/ui/dashboarCarte"), {
   ssr: false,
@@ -117,6 +118,52 @@ export default function DashboardPage(): JSX.Element {
     );
     setPage(1);
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch("/api/infra/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data?.error || "Échec de la suppression");
+        return;
+      }
+
+      // Remove from state
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      console.log(`✅ Infrastructure ${id} supprimée`);
+    } catch (e) {
+      console.error("Error deleting infrastructure:", e);
+      alert("Erreur lors de la suppression");
+    }
+  };
+
+  const handleMapInfraClick = (infraId: string) => {
+    // Set the selected infrastructure to expand it
+    setSelectedInfraId(infraId);
+    
+    // Find the infrastructure in the filtered list to get its page
+    const infraIndex = filtered.findIndex(item => item.id === infraId);
+    if (infraIndex !== -1) {
+      // Calculate which page the infrastructure is on
+      const targetPage = Math.floor(infraIndex / perPage) + 1;
+      setPage(targetPage);
+      
+      // Scroll to the infrastructure list
+      setTimeout(() => {
+        const element = document.getElementById(`infra-${infraId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  };
+
   const [selectedCenter, setSelectedCenter] = useState<[number, number] | null>(
     null
   );
@@ -327,6 +374,7 @@ export default function DashboardPage(): JSX.Element {
                       )
                     }
                     onSelect={(center) => setSelectedCenter(center)}
+                    onDelete={handleDelete}
                   />
                 ))}
               </ul>
@@ -413,7 +461,11 @@ export default function DashboardPage(): JSX.Element {
               </div>
             </div>
           </div>
-          <Carte infrastructures={items} selectedCenter={selectedCenter} />{" "}
+          <Carte 
+            infrastructures={items} 
+            selectedCenter={selectedCenter} 
+            onInfraClick={handleMapInfraClick}
+          />{" "}
         </aside>
       </main>
 
@@ -458,6 +510,11 @@ export default function DashboardPage(): JSX.Element {
           />
         </div>
       )}
+
+      {/* UserMenu in bottom left corner */}
+      <div className="fixed bottom-4 left-4 z-50">
+        <UserMenu />
+      </div>
     </div>
   );
 }
