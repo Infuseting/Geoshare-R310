@@ -59,7 +59,9 @@ export default function AlertSystemIntegration() {
                 const sorted = alerts.sort((a: any, b: any) => {
                     const priority = { 'ROUGE': 3, 'ORANGE': 2, 'JAUNE': 1 }
                     // @ts-ignore
-                    return  priority[b.risk_level] - priority[a.risk_level] 
+                    const pDiff = priority[b.risk_level] - priority[a.risk_level]
+                    if (pDiff !== 0) return pDiff
+                    return new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
                 })
                 
                 const topAlert = sorted[0]

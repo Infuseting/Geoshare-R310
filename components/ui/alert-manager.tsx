@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Plus, Trash2, Edit2, AlertTriangle, Calendar, Clock } from 'lucide-react'
+import { Plus, Trash2, Edit2, AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react'
 import MultiComboBox, { Option } from './multi-combobox'
 
 // Types
@@ -27,6 +27,7 @@ export default function AlertManager() {
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [responsibleAreas, setResponsibleAreas] = useState<ResponsibleAreas>({ communes: [], regions: [], epcis: [] })
+    const [isCreating, setIsCreating] = useState(false)
 
     const fetchAlerts = async () => {
         try {
@@ -78,6 +79,7 @@ export default function AlertManager() {
     }
 
     const handleCreate = async (data: any) => {
+        setIsCreating(true)
         try {
             const res = await fetch('/api/alerts/create', {
                 method: 'POST',
@@ -93,6 +95,8 @@ export default function AlertManager() {
             }
         } catch (e) {
             alert('Erreur serveur')
+        } finally {
+            setIsCreating(false)
         }
     }
 
@@ -131,14 +135,27 @@ export default function AlertManager() {
                                     }`}>
                                         {alert.risk_level}
                                     </span>
-                                    {alert.is_active ? (
-                                        <span className="text-green-600 text-xs font-medium flex items-center gap-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></div>
-                                            Active
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400 text-xs text-medium">Inactive</span>
-                                    )}
+                                    {(() => {
+                                        const now = new Date()
+                                        const start = new Date(alert.start_time)
+                                        const end = alert.end_time ? new Date(alert.end_time) : null
+                                        
+                                        if (!alert.is_active) {
+                                            return <span className="text-gray-400 text-xs font-medium">Inactive (Désactivée)</span>
+                                        }
+                                        if (now < start) {
+                                            return <span className="text-blue-600 text-xs font-medium">Programmée</span>
+                                        }
+                                        if (end && now > end) {
+                                            return <span className="text-gray-500 text-xs font-medium">Terminée</span>
+                                        }
+                                        return (
+                                            <span className="text-green-600 text-xs font-medium flex items-center gap-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></div>
+                                                En cours
+                                            </span>
+                                        )
+                                    })()}
                                 </div>
                                 <h4 className="font-bold text-gray-900">{alert.title}</h4>
                                 <p className="text-sm text-gray-600 line-clamp-2">{alert.message}</p>
@@ -176,6 +193,7 @@ export default function AlertManager() {
                         areas={responsibleAreas} 
                         onClose={() => setShowModal(false)}
                         onSubmit={handleCreate}
+                        submitting={isCreating}
                     />
                 </div>
             )}
@@ -183,7 +201,7 @@ export default function AlertManager() {
     )
 }
 
-function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onClose: () => void, onSubmit: (data: any) => void }) {
+function AlertForm({ areas, onClose, onSubmit, submitting }: { areas: ResponsibleAreas, onClose: () => void, onSubmit: (data: any) => void, submitting: boolean }) {
     const [title, setTitle] = useState('')
     const [message, setMessage] = useState('')
     const [riskLevel, setRiskLevel] = useState<'JAUNE' | 'ORANGE' | 'ROUGE'>('JAUNE')
@@ -232,8 +250,9 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                         required
                         value={title}
                         onChange={e => setTitle(e.target.value)}
-                        className="w-full border rounded-lg p-2"
+                        className="w-full border rounded-lg p-2 disabled:bg-gray-100 disabled:text-gray-500"
                         placeholder="Ex: Alerte Inondation"
+                        disabled={submitting}
                    />
                 </div>
 
@@ -242,9 +261,10 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                    <textarea 
                         value={message}
                         onChange={e => setMessage(e.target.value)}
-                        className="w-full border rounded-lg p-2"
+                        className="w-full border rounded-lg p-2 disabled:bg-gray-100 disabled:text-gray-500"
                         rows={3}
                         placeholder="Détails sur l'alerte..."
+                        disabled={submitting}
                    />
                 </div>
 
@@ -254,7 +274,8 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                         <select 
                             value={riskLevel}
                             onChange={(e: any) => setRiskLevel(e.target.value)}
-                            className="w-full border rounded-lg p-2"
+                            className="w-full border rounded-lg p-2 disabled:bg-gray-100 disabled:text-gray-500"
+                            disabled={submitting}
                         >
                             <option value="JAUNE">JAUNE</option>
                             <option value="ORANGE">ORANGE</option>
@@ -274,7 +295,8 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                             required
                             value={startTime}
                             onChange={e => setStartTime(e.target.value)}
-                            className="w-full border rounded-lg p-2"
+                            className="w-full border rounded-lg p-2 disabled:bg-gray-100 disabled:text-gray-500"
+                            disabled={submitting}
                         />
                     </div>
                     <div>
@@ -283,7 +305,8 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                             type="datetime-local"
                             value={endTime}
                             onChange={e => setEndTime(e.target.value)}
-                            className="w-full border rounded-lg p-2"
+                            className="w-full border rounded-lg p-2 disabled:bg-gray-100 disabled:text-gray-500"
+                            disabled={submitting}
                         />
                     </div>
                 </div>
@@ -298,7 +321,7 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
 
                     <div className="space-y-4">
                         {areas.regions.length > 0 && (
-                            <div>
+                            <div className={submitting ? 'pointer-events-none opacity-60' : ''}>
                                 <MultiComboBox 
                                     label="Régions"
                                     options={regionOptions}
@@ -310,7 +333,7 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                         )}
                         
                         {areas.epcis.length > 0 && (
-                            <div>
+                            <div className={submitting ? 'pointer-events-none opacity-60' : ''}>
                                 <MultiComboBox 
                                     label="EPCIs"
                                     options={epciOptions}
@@ -322,7 +345,7 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                         )}
 
                         {areas.communes.length > 0 && (
-                            <div>
+                            <div className={submitting ? 'pointer-events-none opacity-60' : ''}>
                                 <MultiComboBox 
                                     label="Communes"
                                     options={communeOptions}
@@ -339,16 +362,18 @@ function AlertForm({ areas, onClose, onSubmit }: { areas: ResponsibleAreas, onCl
                     <button 
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+                        disabled={submitting}
                     >
                         Annuler
                     </button>
                     <button 
                         type="submit"
-                        disabled={hasNoResult}
-                        className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        disabled={hasNoResult || submitting}
+                        className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Créer l'alerte
+                        {submitting && <Loader2 className="animate-spin" size={16} />}
+                        {submitting ? 'Création...' : "Créer l'alerte"}
                     </button>
                 </div>
             </form>

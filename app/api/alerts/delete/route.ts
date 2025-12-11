@@ -43,15 +43,52 @@ export async function POST(request: Request) {
       WHERE idUser = ?
     `, [userId])
 
-        const allowedCommunes = new Set<number>()
-        const allowedRegions = new Set<number>()
-        const allowedEpcis = new Set<number>()
+        // Create sets of all areas the user can manage (including children)
+        const directRegionIds = new Set<number>()
+        const directEpciIds = new Set<number>()
+        const directCommuneIds = new Set<number>()
 
         respRows.forEach((r: any) => {
-            if (r.Commune_idVille) allowedCommunes.add(r.Commune_idVille)
-            if (r.Region_idRegion) allowedRegions.add(r.Region_idRegion)
-            if (r.EPCI_idEPCI) allowedEpcis.add(r.EPCI_idEPCI)
+            if (r.Region_idRegion) directRegionIds.add(r.Region_idRegion)
+            if (r.EPCI_idEPCI) directEpciIds.add(r.EPCI_idEPCI)
+            if (r.Commune_idVille) directCommuneIds.add(r.Commune_idVille)
         })
+
+        // Cascade logic
+        let allRegionIds = Array.from(directRegionIds)
+        let allEpciIds = Array.from(directEpciIds)
+        let allCommuneIds = Array.from(directCommuneIds)
+
+        // 1. Expand EPCIs from Regions
+        if (allRegionIds.length > 0) {
+            const placeholders = allRegionIds.map(() => '?').join(',')
+            const regionEpciRows = await query(`
+                SELECT EPCI_idEPCI 
+                FROM EPCI_has_Region 
+                WHERE Region_idRegion IN (${placeholders})
+            `, allRegionIds)
+            regionEpciRows.forEach((row: any) => {
+                if (!directEpciIds.has(row.EPCI_idEPCI)) allEpciIds.push(row.EPCI_idEPCI)
+            })
+        }
+
+        // 2. Expand Communes from (original + expanded) EPCIs
+        const uniqueEpciIds = Array.from(new Set(allEpciIds))
+        if (uniqueEpciIds.length > 0) {
+            const placeholders = uniqueEpciIds.map(() => '?').join(',')
+            const epciCommuneRows = await query(`
+                SELECT Commune_idVille 
+                FROM Commune_has_EPCI 
+                WHERE EPCI_idEPCI IN (${placeholders})
+            `, uniqueEpciIds)
+            epciCommuneRows.forEach((row: any) => {
+                allCommuneIds.push(row.Commune_idVille)
+            })
+        }
+
+        const allowedCommunes = new Set(allCommuneIds)
+        const allowedRegions = new Set(allRegionIds)
+        const allowedEpcis = new Set(allEpciIds)
 
         // Get alert areas
         // If alert has NO area (orphan), maybe allow delete if admin? But we assume alerts have areas.
