@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import UserMenu from "@/components/ui/user-menu";
 
 export default function Home() {
@@ -185,11 +192,41 @@ export default function Home() {
               {/* Boutons */}
               <div className="flex items-center gap-3">
                 {/* Menu mobile */}
-                <button className="lg:hidden p-2 text-gray-700 hover:text-[#D2232A] hover:bg-gray-100 rounded-lg transition-all">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
+                <div className="lg:hidden flex items-center">
+                  {loading ? (
+                    <div className="w-8 h-8 animate-pulse bg-gray-200 rounded-full" />
+                  ) : isAuthenticated ? (
+                    <UserMenu />
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-2 text-gray-700 hover:text-[#D2232A] hover:bg-gray-100 rounded-lg transition-all">
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                          </svg>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[200px] z-[1000]">
+                        <DropdownMenuItem asChild>
+                          <a href="#" className="w-full cursor-pointer">Accueil</a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <a href="#fonctionnalites" className="w-full cursor-pointer">Fonctionnalités</a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <a href="#advantages" className="w-full cursor-pointer">Avantages</a>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/login" className="w-full cursor-pointer font-medium">Se connecter</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/register" className="w-full cursor-pointer font-bold text-[#D2232A]">S'inscrire</Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
 
                 {/* Boutons desktop */}
                 <div className="hidden lg:flex gap-3">
