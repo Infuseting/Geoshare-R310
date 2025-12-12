@@ -103,6 +103,6 @@ npm run start
 
 ## 👥 Contributeurs
 
-*   **Infuseting**
-*   **Antoin9-e**
-*   **remynder0**
+*   [Infuseting](https://github.com/Infuseting)
+*   [Antoin9-e](https://github.com/Antoin9-e)
+*   [remynder0](https://github.com/remynder0)
